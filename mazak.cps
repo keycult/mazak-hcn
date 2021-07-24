@@ -4,25 +4,22 @@
 
   Mazak post processor configuration.
 
-  $Revision: 43336 26e276304b5d8cac2f7af931428c7bd7036416d8 $
-  $Date: 2021-06-25 14:01:30 $
-  
-  FORKID {62F61C65-979D-4f9f-97B0-C5F9634CC6A7}
+  Subsequent additions by Zach Allaun & Keycult.
 */
 
 // ATTENTION: parameter F86 bit 6 must be on for G43.4
 
-description = "Mazak";
+description = "Mazak HCN (Keycult)";
 vendor = "Mazak";
 vendorUrl = "http://www.autodesk.com";
 legal = "Copyright (C) 2012-2021 by Autodesk, Inc.";
 certificationLevel = 2;
 minimumRevision = 45702;
 
-longDescription = "Generic milling post for Mazak.";
+longDescription = "Milling post for Mazak HCN, with customizations by Keycult";
 
 extension = "eia";
-programNameIsInteger = true;
+programNameIsInteger = false;
 setCodePage("ascii");
 
 capabilities = CAPABILITY_MILLING | CAPABILITY_MACHINE_SIMULATION;
@@ -67,7 +64,7 @@ properties = {
     description: "Use sequence numbers for each block of outputted code.",
     group: 1,
     type: "boolean",
-    value: true,
+    value: false,
     scope: "post"
   },
   sequenceNumberStart: {
@@ -118,7 +115,7 @@ properties = {
     title: "Show notes",
     description: "Writes operation notes as comments in the outputted code.",
     type: "boolean",
-    value: false,
+    value: true,
     scope: "post"
   },
   usePitchForTapping: {
@@ -167,6 +164,31 @@ properties = {
     value:"-1",
     scope: "post"
   },
+  /*
+  // TODO: G61.1
+  // Implementation:
+  // If set to true, always enable G61.1 P0 if it's appropriate for the op (i.e. not drilling/tapping)
+  // Cancel & re-enable at tool changes even if mode isn't changing (safe restart points)
+  // Allow user override to set P to something other than 0
+  useGeometryCompensation: {
+    title: "Use geometry compensation",
+    description: "Specifies if geometry compensation (G61.1) should be used.",
+    type: "boolean",
+    value: true,
+    scope: "post"
+  },
+  //
+  // TODO: Tool identifiers instead of tool groups
+  // The Heidenhain control has a sort of reference implementation, but it's pretty messy
+  // Should be simple with a getToolIdentifier function that looks for the presence of this property
+  useToolIdentifiers: {
+    title: "Use tool identifiers",
+    description: "Uses alphanumeric tool identifiers instead of tool numbers to call tools.",
+    type: "boolean",
+    value: true,
+    scope: "post"
+  },
+  */
 };
 
 var singleLineCoolant = false; // specifies to output multiple coolant codes in one line rather than in separate lines
@@ -427,6 +449,8 @@ function onOpen() {
 
   sequenceNumber = getProperty("sequenceNumberStart");
 
+  // TODO
+  // Program name does not need to be a number
   if (programName) {
     var programId;
     try {
@@ -1020,6 +1044,9 @@ function onSection() {
   initializeSmoothing();
 
   if (insertToolCall || newWorkOffset || newWorkPlane || smoothing.force) {
+    // TODO
+    // can we be stopping the spindle and retracting simultaneously?
+
     // stop spindle before retract during tool change
     if (insertToolCall && !isFirstSection()) {
       onCommand(COMMAND_STOP_SPINDLE);
@@ -1070,6 +1097,8 @@ function onSection() {
     }
 
     disableLengthCompensation(false);
+    // TODO
+    // Support non-number tool identifiers
     writeBlock("T" + toolFormat.format(tool.number), mFormat.format(6));
     if (tool.comment) {
       writeComment(tool.comment);
@@ -1091,6 +1120,8 @@ function onSection() {
       }
     }
 
+    // TODO
+    // Support non-number tool identifiers
     if (getProperty("preloadTool")) {
       var nextTool = getNextTool(tool.number);
       if (nextTool) {
