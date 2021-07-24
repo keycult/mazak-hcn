@@ -638,6 +638,11 @@ function getOffsetCode() {
   return offsetCode;
 }
 
+// TODO
+// This seems messy/unnecessary. It's not using any of the automatic smoothing (level 9999) stuff.
+// It also doesn't use any of the threshold/etc. settings, it just sets G5 P2 if smoothing is on and applicable
+// or G5 P0 if it's off.
+//
 // Start of smoothing logic
 var smoothingSettings = {
   roughing: 1, // roughing level for smoothing in automatic mode
