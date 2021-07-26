@@ -34,12 +34,17 @@ allowHelicalMoves = true;
 allowedCircularPlanes = undefined; // allow any circular motion
 probeMultipleFeatures = true;
 
-// user-defined properties
+groupDefinitions = {
+  documentation: {title: 'Documentation', order: 0},
+  formatting: {title: 'Formatting', order: 1},
+  keycult: {title: 'Keycult', order: 2},
+};
+
 properties = {
   writeMachine: {
     title: "Write machine",
     description: "Output the machine settings in the header of the code.",
-    group: 0,
+    group: 'documentation',
     type: "boolean",
     value: true,
     scope: "post"
@@ -47,7 +52,55 @@ properties = {
   writeTools: {
     title: "Write tool list",
     description: "Output a tool list in the header of the code.",
-    group: 0,
+    group: 'documentation',
+    type: "boolean",
+    value: true,
+    scope: "post"
+  },
+  showNotes: {
+    title: "Show notes",
+    description: "Writes operation notes as comments in the outputted code.",
+    group: 'documentation',
+    type: "boolean",
+    value: true,
+    scope: "post"
+  },
+  showToolComments: {
+    title: 'Show tool comments',
+    description: 'Writes tool comments after a tool change.',
+    group: 'documentation',
+    type: 'boolean',
+    value: false,
+    scope: 'post',
+  },
+  showSequenceNumbers: {
+    title: "Use sequence numbers",
+    description: "Use sequence numbers for each block of outputted code.",
+    group: 'formatting',
+    type: "boolean",
+    value: false,
+    scope: "post"
+  },
+  sequenceNumberStart: {
+    title: "Start sequence number",
+    description: "The number at which to start the sequence numbers.",
+    group: 'formatting',
+    type: "integer",
+    value: 10,
+    scope: "post"
+  },
+  sequenceNumberIncrement: {
+    title: "Sequence number increment",
+    description: "The amount by which the sequence number is incremented by in each block.",
+    group: 'formatting',
+    type: "integer",
+    value: 5,
+    scope: "post"
+  },
+  separateWordsWithSpace: {
+    title: "Separate words with space",
+    description: "Adds spaces between words if 'yes' is selected.",
+    group: 'formatting',
     type: "boolean",
     value: true,
     scope: "post"
@@ -59,40 +112,9 @@ properties = {
     value: true,
     scope: "post"
   },
-  showSequenceNumbers: {
-    title: "Use sequence numbers",
-    description: "Use sequence numbers for each block of outputted code.",
-    group: 1,
-    type: "boolean",
-    value: false,
-    scope: "post"
-  },
-  sequenceNumberStart: {
-    title: "Start sequence number",
-    description: "The number at which to start the sequence numbers.",
-    group: 1,
-    type: "integer",
-    value: 10,
-    scope: "post"
-  },
-  sequenceNumberIncrement: {
-    title: "Sequence number increment",
-    description: "The amount by which the sequence number is incremented by in each block.",
-    group: 1,
-    type: "integer",
-    value: 5,
-    scope: "post"
-  },
   optionalStop: {
     title: "Optional stop",
     description: "Outputs optional stop code during when necessary in the code.",
-    type: "boolean",
-    value: true,
-    scope: "post"
-  },
-  separateWordsWithSpace: {
-    title: "Separate words with space",
-    description: "Adds spaces between words if 'yes' is selected.",
     type: "boolean",
     value: true,
     scope: "post"
@@ -109,13 +131,6 @@ properties = {
     description: "Specifies the feed value that should be output using a Q value.",
     type: "boolean",
     value: false,
-    scope: "post"
-  },
-  showNotes: {
-    title: "Show notes",
-    description: "Writes operation notes as comments in the outputted code.",
-    type: "boolean",
-    value: true,
     scope: "post"
   },
   usePitchForTapping: {
@@ -164,6 +179,14 @@ properties = {
     value:"-1",
     scope: "post"
   },
+  useToolIdentifiers: {
+    title: "Use tool identifiers",
+    description: "Uses alphanumeric tool identifiers instead of tool numbers to call tools.",
+    group: 'keycult',
+    type: "boolean",
+    value: true,
+    scope: "post"
+  },
   /*
   // TODO: G61.1
   // Implementation:
@@ -173,17 +196,6 @@ properties = {
   useGeometryCompensation: {
     title: "Use geometry compensation",
     description: "Specifies if geometry compensation (G61.1) should be used.",
-    type: "boolean",
-    value: true,
-    scope: "post"
-  },
-  //
-  // TODO: Tool identifiers instead of tool groups
-  // The Heidenhain control has a sort of reference implementation, but it's pretty messy
-  // Should be simple with a getToolIdentifier function that looks for the presence of this property
-  useToolIdentifiers: {
-    title: "Use tool identifiers",
-    description: "Uses alphanumeric tool identifiers instead of tool numbers to call tools.",
     type: "boolean",
     value: true,
     scope: "post"
@@ -207,7 +219,8 @@ var coolants = [
   {id: COOLANT_OFF, off: 9}
 ];
 
-var permittedCommentChars = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,=_-:#";
+var permittedCommentChars = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,=_-:#';
+var permittedToolIdentifierChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-_.';
 
 var gFormat = createFormat({prefix:"G", decimals:1});
 var mFormat = createFormat({prefix:"M", decimals:0});
@@ -236,7 +249,6 @@ var cOutput = createVariable({prefix:"C"}, abcFormat);
 var feedOutput = createVariable({prefix:"F"}, feedFormat);
 var pitchOutput = createVariable({prefix:"F", force:true}, pitchFormat);
 var sOutput = createVariable({prefix:"S", force:true}, rpmFormat);
-var dOutput = createVariable({}, dFormat);
 
 // circular output
 var iOutput = createReferenceVariable({prefix:"I", force:true}, xyzFormat);
@@ -283,9 +295,6 @@ var currentFeedId;
 var maximumCircularRadiiDifference = toPreciseUnit(0.005, MM);
 var retracted = false; // specifies that the tool has been retracted to the safe plane
 
-/**
-  Writes the specified block.
-*/
 function writeBlock() {
   if (!formatWords(arguments)) {
     return;
@@ -298,9 +307,6 @@ function writeBlock() {
   }
 }
 
-/**
-  Writes the specified optional block.
-*/
 function writeOptionalBlock() {
   if (getProperty("showSequenceNumbers")) {
     var words = formatWords(arguments);
@@ -317,9 +323,6 @@ function formatComment(text) {
   return "(" + filterText(String(text).toUpperCase(), permittedCommentChars) + ")";
 }
 
-/**
-  Output a comment.
-*/
 function writeComment(text) {
   writeln(formatComment(text));
 }
@@ -534,33 +537,6 @@ function onOpen() {
       }
     }
   }
-  
-  if (false) {
-    // check for duplicate tool number
-    for (var i = 0; i < getNumberOfSections(); ++i) {
-      var sectioni = getSection(i);
-      var tooli = sectioni.getTool();
-      for (var j = i + 1; j < getNumberOfSections(); ++j) {
-        var sectionj = getSection(j);
-        var toolj = sectionj.getTool();
-        if (tooli.number == toolj.number) {
-          if (xyzFormat.areDifferent(tooli.diameter, toolj.diameter) ||
-              xyzFormat.areDifferent(tooli.cornerRadius, toolj.cornerRadius) ||
-              abcFormat.areDifferent(tooli.taperAngle, toolj.taperAngle) ||
-              (tooli.numberOfFlutes != toolj.numberOfFlutes)) {
-            error(
-              subst(
-                localize("Using the same tool number for different cutter geometry for operation '%1' and '%2'."),
-                sectioni.hasParameter("operation-comment") ? sectioni.getParameter("operation-comment") : ("#" + (i + 1)),
-                sectionj.hasParameter("operation-comment") ? sectionj.getParameter("operation-comment") : ("#" + (j + 1))
-              )
-            );
-            return;
-          }
-        }
-      }
-    }
-  }
 
   if ((getNumberOfSections() > 0) && (getSection(0).workOffset == 0)) {
     for (var i = 0; i < getNumberOfSections(); ++i) {
@@ -590,14 +566,12 @@ function onComment(message) {
   writeComment(message);
 }
 
-/** Force output of X, Y, and Z. */
 function forceXYZ() {
   xOutput.reset();
   yOutput.reset();
   zOutput.reset();
 }
 
-/** Force output of A, B, and C. */
 function forceABC() {
   aOutput.reset();
   bOutput.reset();
@@ -1102,41 +1076,21 @@ function onSection() {
     }
 
     disableLengthCompensation(false);
-    // TODO
-    // Support non-number tool identifiers
-    writeBlock("T" + toolFormat.format(tool.number), mFormat.format(6));
-    if (tool.comment) {
+    writeBlock('T' + formatToolNumber(tool), mFormat.format(6));
+    if (getProperty('showToolComments') && !!tool.comment) {
       writeComment(tool.comment);
     }
-    var showToolZMin = false;
-    if (showToolZMin) {
-      if (is3D()) {
-        var numberOfSections = getNumberOfSections();
-        var zRange = currentSection.getGlobalZRange();
-        var number = tool.number;
-        for (var i = currentSection.getId() + 1; i < numberOfSections; ++i) {
-          var section = getSection(i);
-          if (section.getTool().number != number) {
-            break;
-          }
-          zRange.expandToRange(section.getGlobalZRange());
-        }
-        writeComment(localize("ZMIN") + "=" + zRange.getMinimum());
-      }
-    }
 
-    // TODO
-    // Support non-number tool identifiers
     if (getProperty("preloadTool")) {
       var nextTool = getNextTool(tool.number);
       if (nextTool) {
-        writeBlock("T" + toolFormat.format(nextTool.number));
+        writeBlock('T' + formatToolNumber(nextTool));
       } else {
         // preload first tool
         var section = getSection(0);
-        var firstToolNumber = section.getTool().number;
-        if (tool.number != firstToolNumber) {
-          writeBlock("T" + toolFormat.format(firstToolNumber));
+        var firstTool = section.getTool();
+        if (tool.number != firstTool.number) {
+          writeBlock('T' + formatToolNumber(firstTool));
         }
       }
     }
@@ -1222,12 +1176,6 @@ function onSection() {
   }
 
   if (insertToolCall || !lengthCompensationActive || retracted || (!isFirstSection() && getPreviousSection().isMultiAxis())) {
-    var lengthOffset = tool.lengthOffset;
-    if (lengthOffset > 512) {
-      error(localize("Length offset out of range."));
-      return;
-    }
-
     gMotionModal.reset();
     writeBlock(gPlaneModal.format(17));
 
@@ -1239,7 +1187,7 @@ function onSection() {
         gAbsIncModal.format(90),
         gMotionModal.format(0), xOutput.format(initialPosition.x), yOutput.format(initialPosition.y)
       );
-      writeBlock(gMotionModal.format(0), gFormat.format(getOffsetCode()), zOutput.format(initialPosition.z), hFormat.format(lengthOffset));
+      writeBlock(gMotionModal.format(0), gFormat.format(getOffsetCode()), zOutput.format(initialPosition.z), formatToolH(tool));
       lengthCompensationActive = true;
     } else {
       writeBlock(
@@ -2082,19 +2030,13 @@ function onLinear(_x, _y, _z, feed) {
   if (x || y || z) {
     if (pendingRadiusCompensation >= 0) {
       pendingRadiusCompensation = -1;
-      var d = tool.diameterOffset;
-      if (d > 512) {
-        warning(localize("The diameter offset exceeds the maximum value."));
-      }
       writeBlock(gPlaneModal.format(17));
       switch (radiusCompensation) {
       case RADIUS_COMPENSATION_LEFT:
-        dOutput.reset();
-        writeBlock(gMotionModal.format(1), gFormat.format(41), x, y, z, dOutput.format(d), f);
+        writeBlock(gMotionModal.format(1), gFormat.format(41), x, y, z, formatToolD(tool), f);
         break;
       case RADIUS_COMPENSATION_RIGHT:
-        dOutput.reset();
-        writeBlock(gMotionModal.format(1), gFormat.format(42), x, y, z, dOutput.format(d), f);
+        writeBlock(gMotionModal.format(1), gFormat.format(42), x, y, z, formatToolD(tool), f);
         break;
       default:
         writeBlock(gMotionModal.format(1), gFormat.format(40), x, y, z, f);
@@ -2624,6 +2566,13 @@ function onReturnFromSafeRetractPosition(_x, _y, _z) {
 }
 // End of onRewindMachine logic
 
+function onPassThrough(text) {
+  var commands = String(text).split(",");
+  for (text in commands) {
+    writeBlock(commands[text]);
+  }
+}
+
 function onClose() {
   if (isDPRNTopen) {
     writeln("DPRNT[END]");
@@ -2660,4 +2609,38 @@ function onClose() {
 
 function setProperty(property, value) {
   properties[property].current = value;
+}
+
+function formatToolIdentifier(tool) {
+  var identifier = tool.description;
+
+  validate(!!identifier, 'Tool description must be present as the tool identifier: ' + tool.number);
+  validate(identifier.length <= 32, 'Tool description must be less than 32 characters when tool identifiers are used: ' + tool.description);
+  validate(identifier === filterText(identifier, permittedToolIdentifierChars), 'Tool description can only contain "' + permittedToolIdentifierChars + '": "' + identifier + '"');
+
+  return '<' + identifier + '>';
+}
+
+function formatToolNumber(tool) {
+  if (getProperty('useToolIdentifiers')) {
+    return formatToolIdentifier(tool);
+  } else {
+    return toolFormat.format(tool.number);
+  }
+}
+
+function formatToolH(tool) {
+  if (getProperty('useToolIdentifiers')) {
+    return 'H' + formatToolIdentifier(tool);
+  } else {
+    return hFormat.format(tool.lengthOffset);
+  }
+}
+
+function formatToolD(tool) {
+  if (getProperty('useToolIdentifiers')) {
+    return 'D' + formatToolIdentifier(tool);
+  } else {
+    return dFormat.format(tool.diameterOffset);
+  }
 }
