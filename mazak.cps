@@ -414,31 +414,9 @@ function setFeedrateMode(reset) {
   }
 }
 
-function defineMachine() {
-  if (false) { // note: setup your machine here
-    var aAxis = createAxis({coordinate:0, table:true, axis:[1, 0, 0], range:[-120, 120], preference:1, tcp:true});
-    var cAxis = createAxis({coordinate:2, table:true, axis:[0, 0, 1], range:[-360, 360], preference:0, tcp:true});
-    machineConfiguration = new MachineConfiguration(aAxis, cAxis);
-
-    setMachineConfiguration(machineConfiguration);
-    if (receivedMachineConfiguration) {
-      warning(localize("The provided CAM machine configuration is overwritten by the postprocessor."));
-      receivedMachineConfiguration = false; // CAM provided machine configuration is overwritten
-    }
-  }
-  /* home positions */
-  // machineConfiguration.setHomePositionX(toPreciseUnit(0, IN));
-  // machineConfiguration.setHomePositionY(toPreciseUnit(0, IN));
-  // machineConfiguration.setRetractPlane(toPreciseUnit(0, IN));
-}
-// End of machine configuration logic
-
 function onOpen() {
   receivedMachineConfiguration = (typeof machineConfiguration.isReceived == "function") ? machineConfiguration.isReceived() :
     ((machineConfiguration.getDescription() != "") || machineConfiguration.isMultiAxisConfiguration());
-  if (typeof defineMachine == "function") {
-    defineMachine(); // hardcoded machine configuration
-  }
   activateMachine(); // enable the machine optimizations and settings
 
   if (getProperty("useRadius")) {
