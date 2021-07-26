@@ -12,9 +12,10 @@ This post processor has been adapted by Keycult for use with an HCN-5000 horizon
 
 ## TODO
 
-[ ] Geometry compensation (G61.1)
 [x] Tool identifiers
 [ ] Non-number program names
-[ ] Refined/simplified smoothing logic
+[ ] Geometry compensation (G61.1)
+[x] Remove naive smoothing implementation
+[ ] Re-implement G5P2 (high speed smoothing, high speed machining)
 [ ] G177 simultaneous operation (spindle accel/decel, through-spindle coolant)
 [ ] Output as subprogram
