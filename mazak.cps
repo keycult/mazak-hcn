@@ -167,18 +167,6 @@ properties = {
     value: true,
     scope: "post"
   },
-  useSmoothing: {
-    title:"Use smoothing",
-    description:"Specifies if smoothing should be used.",
-    type:"enum",
-    values:[
-      {title:"No", id:"-1"},
-      // {title:"Automatic", id:"9999"}
-      {title:"Yes", id:"1"},
-    ],
-    value:"-1",
-    scope: "post"
-  },
   useToolIdentifiers: {
     title: "Use tool identifiers",
     description: "Uses alphanumeric tool identifiers instead of tool numbers to call tools.",
@@ -590,105 +578,6 @@ function getOffsetCode() {
   return offsetCode;
 }
 
-// TODO
-// This seems messy/unnecessary. It's not using any of the automatic smoothing (level 9999) stuff.
-// It also doesn't use any of the threshold/etc. settings, it just sets G5 P2 if smoothing is on and applicable
-// or G5 P0 if it's off.
-//
-// Start of smoothing logic
-var smoothingSettings = {
-  roughing: 1, // roughing level for smoothing in automatic mode
-  semi: 2, // semi-roughing level for smoothing in automatic mode
-  finishing: 3, // finishing level for smoothing in automatic mode
-  thresholdRoughing: toPreciseUnit(0.1, MM), // operations with stock/tolerance above that threshold will use roughing level in automatic mode
-  thresholdFinishing: toPreciseUnit(0.01, MM), // operations with stock/tolerance below that threshold will use finishing level in automatic mode
-  differenceCriteria: "level", // options: "level", "tolerance", "both". Specifies criteria when output smoothing codes
-  autoLevelCriteria: "stock", // use "stock" or "tolerance" to determine levels in automatic mode
-  cancelCompensation: true // tool length compensation must be canceled prior to changing the smoothing level
-};
-
-// collected state below, do not edit
-var smoothing = {
-  isActive: false, // the current state of smoothing
-  isAllowed: false, // smoothing is allowed for this operation
-  isDifferent: false, // tells if smoothing levels/tolerances/both are different between operations
-  level: -1, // the active level of smoothing
-  tolerance: -1, // the current operation tolerance
-  force: false // smoothing needs to be forced out in this operation
-};
-
-function initializeSmoothing() {
-  var previousLevel = smoothing.level;
-  var previousTolerance = smoothing.tolerance;
-
-  // determine new smoothing levels and tolerances
-  smoothing.level = parseInt(getProperty("useSmoothing"), 10);
-  smoothing.level = isNaN(smoothing.level) ? -1 : smoothing.level;
-  smoothing.tolerance = Math.max(getParameter("operation:tolerance", 0), 0);
-  
-  // automatically determine smoothing level
-  if (smoothing.level == 9999) {
-    if (smoothingSettings.autoLevelCriteria == "stock") { // determine auto smoothing level based on stockToLeave
-      var stockToLeave = xyzFormat.getResultingValue(getParameter("operation:stockToLeave", 0));
-      var verticalStockToLeave = xyzFormat.getResultingValue(getParameter("operation:verticalStockToLeave", 0));
-      if ((stockToLeave >= smoothingSettings.thresholdRoughing) && (verticalStockToLeave >= smoothingSettings.thresholdRoughing)) {
-        smoothing.level = smoothingSettings.roughing; // set roughing level
-      } else {
-        if ((stockToLeave >= smoothingSettings.thresholdFinishing) && (verticalStockToLeave >= smoothingSettings.thresholdFinishing)) { //???
-          smoothing.level = smoothingSettings.semi; // set semi level
-        } else {
-          smoothing.level = smoothingSettings.finishing; // set finishing level
-        }
-      }
-    } else { // detemine auto smoothing level based on operation tolerance instead of stockToLeave
-      smoothing.level = smoothing.tolerance < smoothingSettings.thresholdRoughing ? smoothing.tolerance > smoothingSettings.thresholdFinishing ?
-        smoothingSettings.semi : smoothingSettings.finishing : smoothingSettings.roughing;
-    }
-  }
-
-  switch (smoothingSettings.differenceCriteria) {
-  case "level":
-    smoothing.isDifferent = smoothing.level != previousLevel;
-    break;
-  case "tolerance":
-    smoothing.isDifferent = smoothing.tolerance != previousTolerance;
-    break;
-  case "both":
-    smoothing.isDifferent = smoothing.level != previousLevel || smoothing.tolerance != previousTolerance;
-    break;
-  default:
-    error(localize("Unsupported smoothing criteria."));
-    return;
-  }
-
-  if (smoothing.level == -1) { // useSmoothing is disabled
-    smoothing.isAllowed = false;
-  } else { // do not output smoothing for the following operations
-    smoothing.isAllowed = !(currentSection.getTool().type == TOOL_PROBE || currentSection.checkGroup(STRATEGY_DRILLING));
-  }
-  // tool length compensation needs to be canceled when smoothing state/level changes
-  if (smoothingSettings.cancelCompensation) {
-    smoothing.force = smoothing.isActive && smoothing.isDifferent;
-  }
-}
-
-function setSmoothing(mode) {
-  if (mode == smoothing.isActive && (!mode || !smoothing.isDifferent)) {
-    return; // return if smoothing is already active or is not different
-  }
-  if (typeof lengthCompensationActive != "undefined" && smoothingSettings.cancelCompensation) {
-    validate(!lengthCompensationActive, "Length compensation is active while trying to update smoothing.");
-  }
-
-  if (mode) { // enable smoothing
-    writeBlock(gFormat.format(5), "P2");
-  } else { // disable smoothing
-    writeBlock(gFormat.format(5), "P0");
-  }
-  smoothing.isActive = mode;
-}
-// End of smoothing logic
-
 function FeedContext(id, description, feed) {
   this.id = id;
   this.description = description;
@@ -997,10 +886,8 @@ function onSection() {
     (!machineConfiguration.isMultiAxisConfiguration() && currentSection.isMultiAxis()) ||
     (!getPreviousSection().isMultiAxis() && currentSection.isMultiAxis() ||
       getPreviousSection().isMultiAxis() && !currentSection.isMultiAxis()); // force newWorkPlane between indexing and simultaneous operations
-  // define smoothing mode
-  initializeSmoothing();
 
-  if (insertToolCall || newWorkOffset || newWorkPlane || smoothing.force) {
+  if (insertToolCall || newWorkOffset || newWorkPlane) {
     // TODO
     // can we be stopping the spindle and retracting simultaneously?
 
@@ -1010,9 +897,8 @@ function onSection() {
     }
     
     writeRetract(Z);
-    if ((insertToolCall && !isFirstSection()) || smoothing.force) {
+    if (insertToolCall && !isFirstSection()) {
       disableLengthCompensation();
-      setSmoothing(false);
     }
   }
 
@@ -1141,8 +1027,6 @@ function onSection() {
   // set coolant after we have positioned at Z
   setCoolant(tool.coolant);
   
-  setSmoothing(smoothing.isAllowed);
-
   forceAny();
   gMotionModal.reset();
 
@@ -2571,8 +2455,6 @@ function onClose() {
 
   writeRetract(Z);
   disableLengthCompensation(true);
-
-  setSmoothing(false);
 
   setWorkPlane(new Vector(0, 0, 0)); // reset working plane
 
