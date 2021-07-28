@@ -35,16 +35,16 @@ allowedCircularPlanes = undefined; // allow any circular motion
 probeMultipleFeatures = true;
 
 groupDefinitions = {
-  documentation: {title: 'Documentation', order: 0},
-  formatting: {title: 'Formatting', order: 1},
-  keycult: {title: 'Keycult', order: 2},
+  documentation: {title: "Documentation", order: 0},
+  formatting: {title: "Formatting", order: 1},
+  keycult: {title: "Keycult", order: 2},
 };
 
 properties = {
   writeMachine: {
     title: "Write machine",
     description: "Output the machine settings in the header of the code.",
-    group: 'documentation',
+    group: "documentation",
     type: "boolean",
     value: true,
     scope: "post"
@@ -52,7 +52,7 @@ properties = {
   writeTools: {
     title: "Write tool list",
     description: "Output a tool list in the header of the code.",
-    group: 'documentation',
+    group: "documentation",
     type: "boolean",
     value: true,
     scope: "post"
@@ -60,23 +60,23 @@ properties = {
   showNotes: {
     title: "Show notes",
     description: "Writes operation notes as comments in the outputted code.",
-    group: 'documentation',
+    group: "documentation",
     type: "boolean",
     value: true,
     scope: "post"
   },
   showToolComments: {
-    title: 'Show tool comments',
-    description: 'Writes tool comments after a tool change.',
-    group: 'documentation',
-    type: 'boolean',
+    title: "Show tool comments",
+    description: "Writes tool comments after a tool change.",
+    group: "documentation",
+    type: "boolean",
     value: false,
-    scope: 'post',
+    scope: "post",
   },
   showSequenceNumbers: {
     title: "Use sequence numbers",
     description: "Use sequence numbers for each block of outputted code.",
-    group: 'formatting',
+    group: "formatting",
     type: "boolean",
     value: false,
     scope: "post"
@@ -84,7 +84,7 @@ properties = {
   sequenceNumberStart: {
     title: "Start sequence number",
     description: "The number at which to start the sequence numbers.",
-    group: 'formatting',
+    group: "formatting",
     type: "integer",
     value: 10,
     scope: "post"
@@ -92,7 +92,7 @@ properties = {
   sequenceNumberIncrement: {
     title: "Sequence number increment",
     description: "The amount by which the sequence number is incremented by in each block.",
-    group: 'formatting',
+    group: "formatting",
     type: "integer",
     value: 5,
     scope: "post"
@@ -100,7 +100,7 @@ properties = {
   separateWordsWithSpace: {
     title: "Separate words with space",
     description: "Adds spaces between words if 'yes' is selected.",
-    group: 'formatting',
+    group: "formatting",
     type: "boolean",
     value: true,
     scope: "post"
@@ -170,7 +170,7 @@ properties = {
   useToolIdentifiers: {
     title: "Use tool identifiers",
     description: "Uses alphanumeric tool identifiers instead of tool numbers to call tools.",
-    group: 'keycult',
+    group: "keycult",
     type: "boolean",
     value: true,
     scope: "post"
@@ -207,8 +207,8 @@ var coolants = [
   {id: COOLANT_OFF, off: 9}
 ];
 
-var permittedCommentChars = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,=_-:#';
-var permittedToolIdentifierChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-_.';
+var permittedCommentChars = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,=_-:#";
+var permittedToolIdentifierChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-_.";
 
 var gFormat = createFormat({prefix:"G", decimals:1});
 var mFormat = createFormat({prefix:"M", decimals:0});
@@ -940,21 +940,21 @@ function onSection() {
     }
 
     disableLengthCompensation(false);
-    writeBlock('T' + formatToolNumber(tool), mFormat.format(6));
-    if (getProperty('showToolComments') && !!tool.comment) {
+    writeBlock("T" + formatToolNumber(tool), mFormat.format(6));
+    if (getProperty("showToolComments") && !!tool.comment) {
       writeComment(tool.comment);
     }
 
     if (getProperty("preloadTool")) {
       var nextTool = getNextTool(tool.number);
       if (nextTool) {
-        writeBlock('T' + formatToolNumber(nextTool));
+        writeBlock("T" + formatToolNumber(nextTool));
       } else {
         // preload first tool
         var section = getSection(0);
         var firstTool = section.getTool();
         if (tool.number != firstTool.number) {
-          writeBlock('T' + formatToolNumber(firstTool));
+          writeBlock("T" + formatToolNumber(firstTool));
         }
       }
     }
@@ -2474,15 +2474,15 @@ function setProperty(property, value) {
 function formatToolIdentifier(tool) {
   var identifier = tool.description;
 
-  validate(!!identifier, 'Tool description must be present as the tool identifier: ' + tool.number);
-  validate(identifier.length <= 32, 'Tool description must be less than 32 characters when tool identifiers are used: ' + tool.description);
-  validate(identifier === filterText(identifier, permittedToolIdentifierChars), 'Tool description can only contain "' + permittedToolIdentifierChars + '": "' + identifier + '"');
+  validate(!!identifier, "Tool description must be present as the tool identifier: " + tool.number);
+  validate(identifier.length <= 32, "Tool description must be less than 32 characters when tool identifiers are used: " + tool.description);
+  validate(identifier === filterText(identifier, permittedToolIdentifierChars), "Tool description can only contain '" + permittedToolIdentifierChars + "': '" + identifier + "'");
 
-  return '<' + identifier + '>';
+  return "<" + identifier + ">";
 }
 
 function formatToolNumber(tool) {
-  if (getProperty('useToolIdentifiers')) {
+  if (getProperty("useToolIdentifiers")) {
     return formatToolIdentifier(tool);
   } else {
     return toolFormat.format(tool.number);
@@ -2490,16 +2490,16 @@ function formatToolNumber(tool) {
 }
 
 function formatToolH(tool) {
-  if (getProperty('useToolIdentifiers')) {
-    return 'H' + formatToolIdentifier(tool);
+  if (getProperty("useToolIdentifiers")) {
+    return "H" + formatToolIdentifier(tool);
   } else {
     return hFormat.format(tool.lengthOffset);
   }
 }
 
 function formatToolD(tool) {
-  if (getProperty('useToolIdentifiers')) {
-    return 'D' + formatToolIdentifier(tool);
+  if (getProperty("useToolIdentifiers")) {
+    return "D" + formatToolIdentifier(tool);
   } else {
     return dFormat.format(tool.diameterOffset);
   }
