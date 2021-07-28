@@ -940,23 +940,26 @@ function onSection() {
     }
 
     disableLengthCompensation(false);
-    writeBlock("T" + formatToolNumber(tool), mFormat.format(6));
-    if (getProperty("showToolComments") && !!tool.comment) {
-      writeComment(tool.comment);
-    }
 
+    var nextTool = undefined;
     if (getProperty("preloadTool")) {
-      var nextTool = getNextTool(tool.number);
-      if (nextTool) {
-        writeBlock("T" + formatToolNumber(nextTool));
-      } else {
-        // preload first tool
-        var section = getSection(0);
-        var firstTool = section.getTool();
+      nextTool = getNextTool(tool.number);
+      if (!nextTool) { // preload first tool
+        var firstTool = getSection(0).getTool();
         if (tool.number != firstTool.number) {
-          writeBlock("T" + formatToolNumber(firstTool));
+          nextTool = firstTool;
         }
       }
+    }
+
+    writeBlock(
+      mFormat.format(6),
+      "T" + formatToolNumber(tool),
+      nextTool ? "T" + formatToolNumber(nextTool) : ""
+    );
+
+    if (getProperty("showToolComments") && !!tool.comment) {
+      writeComment(tool.comment);
     }
   }
   
