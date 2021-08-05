@@ -192,9 +192,6 @@ properties = {
 };
 
 var singleLineCoolant = false; // specifies to output multiple coolant codes in one line rather than in separate lines
-// samples:
-// {id: COOLANT_THROUGH_TOOL, on: 88, off: 89}
-// {id: COOLANT_THROUGH_TOOL, on: [8, 88], off: [9, 89]}
 var coolants = [
   {id: COOLANT_FLOOD, on: 8},
   {id: COOLANT_MIST, on: 7},
