@@ -18,6 +18,17 @@ This post processor has been adapted by Keycult for use with an HCN-5000 horizon
 [x] Remove naive smoothing implementation
 [ ] Re-implement G5P2 (high speed smoothing, high speed machining)
 [ ] G117 simultaneous operation (spindle accel/decel, through-spindle coolant)
-[ ] Output as subprogram
+[ ] Output operations as local subprogram
 [ ] Niagara coolant control (M130)
 [ ] High pressure coolant control (M100 - M106 to set coolant pressure levels)
+
+
+## Output operations as local subprogram
+
+See fanuc.cps for reference implementation.
+
+General strategy:
+* Every section is output as a local subprogram 
+* The section sets everything up, WCS/etc. and then calls into the subprogram
+* We record the section into a buffer and spit them all out at the end
+* If the section is a part of a pattern, only record the first instance into the subprogram, each other instance runs that same subprogram

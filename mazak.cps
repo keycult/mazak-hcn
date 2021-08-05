@@ -90,7 +90,7 @@ properties = {
     group: "documentation",
     type: "boolean",
     value: true,
-    scope: "post"
+    scope: "post",
   },
   writeTools: {
     title: "Write tool list",
@@ -98,7 +98,7 @@ properties = {
     group: "documentation",
     type: "boolean",
     value: true,
-    scope: "post"
+    scope: "post",
   },
   showNotes: {
     title: "Show notes",
@@ -106,7 +106,7 @@ properties = {
     group: "documentation",
     type: "boolean",
     value: true,
-    scope: "post"
+    scope: "post",
   },
   showToolComments: {
     title: "Show tool comments",
@@ -122,7 +122,7 @@ properties = {
     group: "formatting",
     type: "boolean",
     value: false,
-    scope: "post"
+    scope: "post",
   },
   sequenceNumberStart: {
     title: "Start sequence number",
@@ -130,7 +130,7 @@ properties = {
     group: "formatting",
     type: "integer",
     value: 10,
-    scope: "post"
+    scope: "post",
   },
   sequenceNumberIncrement: {
     title: "Sequence number increment",
@@ -138,7 +138,7 @@ properties = {
     group: "formatting",
     type: "integer",
     value: 5,
-    scope: "post"
+    scope: "post",
   },
   separateWordsWithSpace: {
     title: "Separate words with space",
@@ -146,49 +146,49 @@ properties = {
     group: "formatting",
     type: "boolean",
     value: true,
-    scope: "post"
+    scope: "post",
   },
   preloadTool: {
     title: "Preload tool",
     description: "Preloads the next tool at a tool change (if any).",
     type: "boolean",
     value: true,
-    scope: "post"
+    scope: "post",
   },
   optionalStop: {
     title: "Optional stop",
     description: "Outputs optional stop code during when necessary in the code.",
     type: "boolean",
     value: true,
-    scope: "post"
+    scope: "post",
   },
   useRadius: {
     title: "Radius arcs",
     description: "If yes is selected, arcs are outputted using radius values rather than IJK.",
     type: "boolean",
     value: false,
-    scope: "post"
+    scope: "post",
   },
   useParametricFeed: {
     title: "Parametric feed",
     description: "Specifies the feed value that should be output using a Q value.",
     type: "boolean",
     value: false,
-    scope: "post"
+    scope: "post",
   },
   usePitchForTapping: {
     title: "Use pitch for tapping",
     description: "Enables the use of pitch instead of feed for the F-word in canned tapping cycles. Your CNC control must be setup for pitch mode!",
     type: "boolean",
     value: false,
-    scope: "post"
+    scope: "post",
   },
   useG54x4: {
     title: "Use G54.4",
     description: "Use G54.4 workpiece error compensation for angular probing.",
     type: "boolean",
     value: false,
-    scope: "post"
+    scope: "post",
   },
   safePositionMethod: {
     title: "Safe Retracts",
@@ -200,7 +200,7 @@ properties = {
       {title: "Clearance Height", id: "clearanceHeight"}
     ],
     value: "G53",
-    scope: "post"
+    scope: "post",
   },
   singleResultsFile: {
     title: "Create single results file",
@@ -208,7 +208,7 @@ properties = {
     group: 0,
     type: "boolean",
     value: true,
-    scope: "post"
+    scope: "post",
   },
   useToolIdentifiers: {
     title: "Use tool identifiers",
@@ -216,7 +216,15 @@ properties = {
     group: "keycult",
     type: "boolean",
     value: true,
-    scope: "post"
+    scope: "post",
+  },
+  useSubprograms: {
+    title: "Use subprograms",
+    description: "Output operations as subprograms.",
+    group: "keycult",
+    type: "boolean",
+    value: true,
+    scope: "post",
   },
   /*
   // TODO: G61.1
@@ -229,7 +237,7 @@ properties = {
     description: "Specifies if geometry compensation (G61.1) should be used.",
     type: "boolean",
     value: true,
-    scope: "post"
+    scope: "post",
   },
   */
 };
@@ -267,6 +275,8 @@ var rpmFormat = createFormat({decimals:0});
 var secFormat = createFormat({decimals:3, forceDecimal:true}); // seconds - range 0.001-99999.999
 var milliFormat = createFormat({decimals:0}); // milliseconds // range 1-99999999
 var taperFormat = createFormat({decimals:1, scale:DEG});
+var oFormat4 = createFormat({ width: 4, zeropad: true, decimals: 0 });
+var oFormat8 = createFormat({ width: 8, zeropad: true, decimals: 0 });
 
 var xOutput = createVariable({prefix:"X"}, xyzFormat);
 var yOutput = createVariable({prefix:"Y"}, xyzFormat);
@@ -464,10 +474,7 @@ function onOpen() {
     var programId = getAsInt(programName);
     validate(programId >= 1 && programId <= 99999999, "Program number is out of range.");
 
-    var oFormat = 
-      programId <= 9999 ?
-      createFormat({ width: 4, zeropad: true, decimals: 0 }) :
-      createFormat({ width: 8, zeropad: true, decimals: 0 });
+    var oFormat = programId <= 9999 ? oFormat4 : oFormat8;
 
     writeln("O" + oFormat.format(programId));
   } catch (e) {
@@ -892,6 +899,39 @@ function getWorkPlaneMachineABC(workPlane, _setWorkPlane, rotate) {
   return abc;
 }
 
+var spState = {
+  programs: [],
+  currentSubprogram: undefined,
+  lastSubprogram: 0,
+};
+
+function subprogramDefine() {
+  if (!getProperty("useSubprograms")) return;
+
+  spState.currentSubprogram = ++spState.lastSubprogram;
+  writeBlock(mFormat.format(98), "P" + oFormat8.format(spState.currentSubprogram));
+  subprogramStart();
+}
+
+function subprogramStart() {
+  redirectToBuffer();
+
+  var comment = hasParameter("operation-comment") ? getParameter("operation-comment") : "";
+  writeln(
+    "O" + oFormat8.format(spState.currentSubprogram) +
+    conditional(comment, " " + formatComment(comment))
+  );
+  gPlaneModal.reset();
+  gMotionModal.reset();
+}
+
+function subprogramEnd() {
+  writeBlock(mFormat.format(99));
+  spState.programs.push(getRedirectionBuffer());
+  forceAny();
+  closeRedirection();
+}
+
 function printProbeResults() {
   return currentSection.getParameter("printResults", 0) == 1;
 }
@@ -1136,6 +1176,8 @@ function onSection() {
       inspectionProcessSectionStart();
     }
   }
+
+  subprogramDefine();
 }
 
 function defineWorkPlane(_section, _setWorkPlane) {
@@ -2226,6 +2268,10 @@ function onSectionEnd() {
     onCommand(COMMAND_BREAK_CONTROL);
   }
 
+  if (isRedirecting()) {
+    subprogramEnd();
+  }
+
   // the code below gets the machine angles from previous operation.  closestABC must also be set to true
   if (currentSection.isMultiAxis() && currentSection.isOptimizedForMachine()) {
     currentMachineABC = currentSection.getFinalToolAxisABC();
@@ -2501,6 +2547,11 @@ function onClose() {
   onImpliedCommand(COMMAND_END);
   onImpliedCommand(COMMAND_STOP_SPINDLE);
   writeBlock(mFormat.format(30)); // stop program, spindle stop, coolant off
+
+  if (spState.programs.length > 0) {
+    writeln("");
+    write(spState.programs.join("\n"));
+  }
 }
 
 function setProperty(property, value) {
