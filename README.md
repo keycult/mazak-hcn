@@ -17,7 +17,7 @@ This post processor has been adapted by Keycult for use with an HCN-5000 horizon
 [ ] Geometry compensation (G61.1)
 [x] Remove naive smoothing implementation
 [ ] Re-implement G5P2 (high speed smoothing, high speed machining)
-[ ] G177 simultaneous operation (spindle accel/decel, through-spindle coolant)
+[ ] G117 simultaneous operation (spindle accel/decel, through-spindle coolant)
 [ ] Output as subprogram
 [ ] Niagara coolant control (M130)
 [ ] High pressure coolant control (M100 - M106 to set coolant pressure levels)
