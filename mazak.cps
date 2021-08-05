@@ -418,31 +418,24 @@ function onOpen() {
 
   sequenceNumber = getProperty("sequenceNumberStart");
 
-  // TODO
-  // Program name does not need to be a number
-  if (programName) {
-    var programId;
-    try {
-      programId = getAsInt(programName);
-    } catch (e) {
-      error(localize("Program name must be a number."));
-      return;
-    }
-    if (!((programId >= 1) && (programId <= 99999999))) {
-      error(localize("Program number is out of range."));
-      return;
-    }
-    var o4Format = createFormat({width:4, zeropad:true, decimals:0});
-    var o8Format = createFormat({width:8, zeropad:true, decimals:0});
-    var oFormat = (programId <= 9999) ? o4Format : o8Format;
-    if (programComment) {
-      writeln("O" + oFormat.format(programId) + " (" + programComment + ")");
-    } else {
-      writeln("O" + oFormat.format(programId));
-    }
-  } else {
-    error(localize("Program name has not been specified."));
-    return;
+  validate(programName, "Program name has not been specified.");
+
+  try {
+    var programId = getAsInt(programName);
+    validate(programId >= 1 && programId <= 99999999, "Program number is out of range.");
+
+    var oFormat = 
+      programId <= 9999 ?
+      createFormat({ width: 4, zeropad: true, decimals: 0 }) :
+      createFormat({ width: 8, zeropad: true, decimals: 0 });
+
+    writeln("O" + oFormat.format(programId));
+  } catch (e) {
+    writeComment(programName);
+  }
+
+  if (programComment) {
+    writeComment(programComment);
   }
 
   // dump machine configuration
