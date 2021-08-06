@@ -218,6 +218,14 @@ properties = {
     value: true,
     scope: "post"
   },
+  useSubprogramsForPatterns: {
+    title: "Use subprograms for patterns",
+    descriptions: "Output pattern instances as local subprograms.",
+    group: "keycult",
+    type: "boolean",
+    value: true,
+    scope: "post"
+  },
   /*
   // TODO: G61.1
   // Implementation:
@@ -267,6 +275,8 @@ var rpmFormat = createFormat({decimals:0});
 var secFormat = createFormat({decimals:3, forceDecimal:true}); // seconds - range 0.001-99999.999
 var milliFormat = createFormat({decimals:0}); // milliseconds // range 1-99999999
 var taperFormat = createFormat({decimals:1, scale:DEG});
+var oFormat4 = createFormat({ width: 4, zeropad: true, decimals: 0 });
+var oFormat8 = createFormat({ width: 8, zeropad: true, decimals: 0 });
 
 var xOutput = createVariable({prefix:"X"}, xyzFormat);
 var yOutput = createVariable({prefix:"Y"}, xyzFormat);
@@ -314,6 +324,10 @@ var probeVariables = {
   compensationXY: undefined
 };
 
+var SUB_UNKNOWN = 0;
+var SUB_PATTERN = 1;
+var SUB_CYCLE = 2;
+
 // collected state
 var sequenceNumber;
 var currentWorkOffset;
@@ -322,6 +336,17 @@ var activeMovements; // do not use by default
 var currentFeedId;
 var maximumCircularRadiiDifference = toPreciseUnit(0.005, MM);
 var retracted = false; // specifies that the tool has been retracted to the safe plane
+var subprograms = [];
+var currentPattern = -1;
+var firstPattern = false;
+var currentSubprogram;
+var lastSubprogram = 0;
+var definedPatterns = new Array();
+var incrementalMode = false;
+var saveShowSequenceNumbers;
+var patternIsActive = false;
+var lastOperationComment = "";
+var incrementalSubprogram;
 
 function writeBlock() {
   if (!formatWords(arguments)) {
@@ -464,11 +489,7 @@ function onOpen() {
     var programId = getAsInt(programName);
     validate(programId >= 1 && programId <= 99999999, "Program number is out of range.");
 
-    var oFormat = 
-      programId <= 9999 ?
-      createFormat({ width: 4, zeropad: true, decimals: 0 }) :
-      createFormat({ width: 8, zeropad: true, decimals: 0 });
-
+    var oFormat = programId <= 9999 ? oFormat4 : oFormat8;
     writeln("O" + oFormat.format(programId));
   } catch (e) {
     writeComment(programName);
@@ -904,12 +925,212 @@ function onParameter(name, value) {
   }
 }
 
+/** Returns true if the spatial vectors are significantly different. */
+function areSpatialVectorsDifferent(_vector1, _vector2) {
+  return (xyzFormat.getResultingValue(_vector1.x) != xyzFormat.getResultingValue(_vector2.x)) ||
+    (xyzFormat.getResultingValue(_vector1.y) != xyzFormat.getResultingValue(_vector2.y)) ||
+    (xyzFormat.getResultingValue(_vector1.z) != xyzFormat.getResultingValue(_vector2.z));
+}
+
+/** Returns true if the spatial boxes are a pure translation. */
+function areSpatialBoxesTranslated(_box1, _box2) {
+  return !areSpatialVectorsDifferent(Vector.diff(_box1[1], _box1[0]), Vector.diff(_box2[1], _box2[0])) &&
+    !areSpatialVectorsDifferent(Vector.diff(_box2[0], _box1[0]), Vector.diff(_box2[1], _box1[1]));
+}
+
+/** Returns true if the spatial boxes are same. */
+function areSpatialBoxesSame(_box1, _box2) {
+  return !areSpatialVectorsDifferent(_box1[0], _box2[0]) && !areSpatialVectorsDifferent(_box1[1], _box2[1]);
+}
+
+function subprogramDefine(_initialPosition, _abc, _retracted, _zIsOutput) {
+  // convert patterns into subprograms
+  var usePattern = false;
+  patternIsActive = false;
+  if (currentSection.isPatterned && currentSection.isPatterned() && getProperty("useSubprogramsForPatterns")) {
+    currentPattern = currentSection.getPatternId();
+    firstPattern = true;
+    for (var i = 0; i < definedPatterns.length; ++i) {
+      if ((definedPatterns[i].patternType == SUB_PATTERN) && (currentPattern == definedPatterns[i].patternId)) {
+        currentSubprogram = definedPatterns[i].subProgram;
+        usePattern = definedPatterns[i].validPattern;
+        firstPattern = false;
+        break;
+      }
+    }
+
+    if (firstPattern) {
+      // determine if this is a valid pattern for creating a subprogram
+      usePattern = subprogramIsValid(currentSection, currentPattern, SUB_PATTERN);
+      if (usePattern) {
+        currentSubprogram = ++lastSubprogram;
+      }
+      definedPatterns.push({
+        patternType: SUB_PATTERN,
+        patternId: currentPattern,
+        subProgram: currentSubprogram,
+        validPattern: usePattern,
+        initialPosition: _initialPosition,
+        finalPosition: _initialPosition
+      });
+    }
+
+    if (usePattern) {
+      // make sure Z-position is output prior to subprogram call
+      if (!_retracted && !_zIsOutput) {
+        writeBlock(gMotionModal.format(0), zOutput.format(_initialPosition.z));
+      }
+
+      // call subprogram
+      writeBlock(mFormat.format(97), "P" + oFormat8.format(currentSubprogram));
+      patternIsActive = true;
+
+      if (firstPattern) {
+        subprogramStart(_initialPosition, _abc, incrementalSubprogram);
+      } else {
+        skipRemainingSection();
+        setCurrentPosition(getFramePosition(currentSection.getFinalPosition()));
+      }
+    }
+  }
+}
+
+function subprogramStart(_initialPosition, _abc, _incremental) {
+  redirectToBuffer();
+  var comment = "";
+  if (hasParameter("operation-comment")) {
+    comment = getParameter("operation-comment");
+  }
+  writeln(
+    "O" + oFormat8.format(currentSubprogram) +
+    conditional(comment, " " + formatComment(comment))
+  );
+  setProperty("showSequenceNumbers", false);
+  if (_incremental) {
+    setIncrementalMode(_initialPosition, _abc);
+  }
+  gPlaneModal.reset();
+  gMotionModal.reset();
+}
+
+function subprogramEnd() {
+  if (firstPattern) {
+    writeBlock(mFormat.format(99));
+    writeln("");
+    subprograms.push(getRedirectionBuffer());
+  }
+  forceAny();
+  firstPattern = false;
+  setProperty("showSequenceNumbers", saveShowSequenceNumbers);
+  closeRedirection();
+}
+
+function subprogramIsValid(_section, _patternId, _patternType) {
+  var sectionId = _section.getId();
+  var numberOfSections = getNumberOfSections();
+  var validSubprogram = _patternType != SUB_CYCLE;
+
+  var masterPosition = new Array();
+  masterPosition[0] = getFramePosition(_section.getInitialPosition());
+  masterPosition[1] = getFramePosition(_section.getFinalPosition());
+  var tempBox = _section.getBoundingBox();
+  var masterBox = new Array();
+  masterBox[0] = getFramePosition(tempBox[0]);
+  masterBox[1] = getFramePosition(tempBox[1]);
+
+  var rotation = getRotation();
+  var translation = getTranslation();
+  incrementalSubprogram = undefined;
+
+  for (var i = 0; i < numberOfSections; ++i) {
+    var section = getSection(i);
+    if (section.getId() != sectionId) {
+      defineWorkPlane(section, false);
+      // check for valid pattern
+      if (_patternType == SUB_PATTERN) {
+        if (section.getPatternId() == _patternId) {
+          var patternPosition = new Array();
+          patternPosition[0] = getFramePosition(section.getInitialPosition());
+          patternPosition[1] = getFramePosition(section.getFinalPosition());
+          tempBox = section.getBoundingBox();
+          var patternBox = new Array();
+          patternBox[0] = getFramePosition(tempBox[0]);
+          patternBox[1] = getFramePosition(tempBox[1]);
+
+          if (areSpatialBoxesSame(masterPosition, patternPosition) && areSpatialBoxesSame(masterBox, patternBox) && !section.isMultiAxis()) {
+            incrementalSubprogram = incrementalSubprogram ? incrementalSubprogram : false;
+          } else if (!areSpatialBoxesTranslated(masterPosition, patternPosition) || !areSpatialBoxesTranslated(masterBox, patternBox)) {
+            validSubprogram = false;
+            break;
+          } else {
+            incrementalSubprogram = true;
+          }
+        }
+
+      // check for valid cycle operation
+      } else if (_patternType == SUB_CYCLE) {
+        if ((section.getNumberOfCyclePoints() == _patternId) && (section.getNumberOfCycles() == 1)) {
+          var patternInitial = getFramePosition(section.getInitialPosition());
+          var patternFinal = getFramePosition(section.getFinalPosition());
+          if (!areSpatialVectorsDifferent(patternInitial, masterPosition[0]) && !areSpatialVectorsDifferent(patternFinal, masterPosition[1])) {
+            validSubprogram = true;
+            break;
+          }
+        }
+      }
+    }
+  }
+  setRotation(rotation);
+  setTranslation(translation);
+  return (validSubprogram);
+}
+
+function setAxisMode(_format, _output, _prefix, _value, _incr) {
+  var i = _output.isEnabled();
+  if (_output == zOutput) {
+    _output = _incr ? createIncrementalVariable({onchange: function() {retracted = false;}, prefix: _prefix}, _format) : createVariable({onchange: function() {retracted = false;}, prefix: _prefix}, _format);
+  } else {
+    _output = _incr ? createIncrementalVariable({prefix: _prefix}, _format) : createVariable({prefix: _prefix}, _format);
+  }
+  _output.format(_value);
+  _output.format(_value);
+  i = i ? _output.enable() : _output.disable();
+  return _output;
+}
+
+function setIncrementalMode(xyz, abc) {
+  xOutput = setAxisMode(xyzFormat, xOutput, "X", xyz.x, true);
+  yOutput = setAxisMode(xyzFormat, yOutput, "Y", xyz.y, true);
+  zOutput = setAxisMode(xyzFormat, zOutput, "Z", xyz.z, true);
+  aOutput = setAxisMode(abcFormat, aOutput, "A", abc.x, true);
+  bOutput = setAxisMode(abcFormat, bOutput, "B", abc.y, true);
+  cOutput = setAxisMode(abcFormat, cOutput, "C", abc.z, true);
+  gAbsIncModal.reset();
+  writeBlock(gAbsIncModal.format(91));
+  incrementalMode = true;
+}
+
+function setAbsoluteMode(xyz, abc) {
+  if (incrementalMode) {
+    xOutput = setAxisMode(xyzFormat, xOutput, "X", xyz.x, false);
+    yOutput = setAxisMode(xyzFormat, yOutput, "Y", xyz.y, false);
+    zOutput = setAxisMode(xyzFormat, zOutput, "Z", xyz.z, false);
+    aOutput = setAxisMode(abcFormat, aOutput, "A", abc.x, false);
+    bOutput = setAxisMode(abcFormat, bOutput, "B", abc.y, false);
+    cOutput = setAxisMode(abcFormat, cOutput, "C", abc.z, false);
+    gAbsIncModal.reset();
+    writeBlock(gAbsIncModal.format(90));
+    incrementalMode = false;
+  }
+}
+
 function onSection() {
   var insertToolCall = isFirstSection() ||
     currentSection.getForceToolChange && currentSection.getForceToolChange() ||
     (tool.number != getPreviousSection().getTool().number);
   
   retracted = false;
+  var zIsOutput = false;
   var newWorkOffset = isFirstSection() ||
     (getPreviousSection().workOffset != currentSection.workOffset); // work offset changes
   var newWorkPlane = isFirstSection() ||
@@ -1056,7 +1277,7 @@ function onSection() {
   }
 
   forceXYZ();
-  defineWorkPlane(currentSection, true);
+  var abc = defineWorkPlane(currentSection, true);
 
   setProbeAngle(); // output probe angle rotations if required
 
@@ -1070,6 +1291,7 @@ function onSection() {
   if (!retracted && !insertToolCall) {
     if (getCurrentPosition().z < initialPosition.z) {
       writeBlock(gMotionModal.format(0), zOutput.format(initialPosition.z));
+      zIsOutput = true;
     }
   }
 
@@ -1086,6 +1308,7 @@ function onSection() {
         gMotionModal.format(0), xOutput.format(initialPosition.x), yOutput.format(initialPosition.y)
       );
       writeBlock(gMotionModal.format(0), gFormat.format(getOffsetCode()), zOutput.format(initialPosition.z), formatToolH(tool));
+      zIsOutput = true;
       lengthCompensationActive = true;
     } else {
       writeBlock(
@@ -1095,6 +1318,7 @@ function onSection() {
         yOutput.format(initialPosition.y),
         zOutput.format(initialPosition.z), hFormat.format(lengthOffset)
       );
+      zIsOutput = true;
       lengthCompensationActive = true;
     }
     gMotionModal.reset();
@@ -1136,6 +1360,8 @@ function onSection() {
       inspectionProcessSectionStart();
     }
   }
+
+  subprogramDefine(initialPosition, abc, retracted, zIsOutput);
 }
 
 function defineWorkPlane(_section, _setWorkPlane) {
@@ -1893,6 +2119,9 @@ function onCycleEnd() {
     gMotionModal.reset();
     writeBlock(gFormat.format(65), "P" + 9810, zOutput.format(cycle.retract)); // protected retract move
   } else {
+    if (isRedirecting()) {
+      subprogramEnd();
+    }
     if (!cycleExpanded) {
       writeBlock(gCycleModal.format(80));
       gMotionModal.reset();
@@ -2501,6 +2730,11 @@ function onClose() {
   onImpliedCommand(COMMAND_END);
   onImpliedCommand(COMMAND_STOP_SPINDLE);
   writeBlock(mFormat.format(30)); // stop program, spindle stop, coolant off
+
+  if (subprograms.length > 0) {
+    writeln("");
+    write(subprograms.join("\n"));
+  }
 }
 
 function setProperty(property, value) {
