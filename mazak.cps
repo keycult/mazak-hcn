@@ -903,22 +903,40 @@ var spState = {
   programs: [],
   currentSubprogram: undefined,
   lastSubprogram: 0,
+  knownPatterns: {},
+  sectionSkipped: false,
 };
 
 function subprogramDefine() {
   if (!getProperty("useSubprograms")) return;
 
+  spState.sectionSkipped = false;
+
+  if (currentSection.isPatterned()) {
+    var currentPattern = currentSection.getPatternId();
+    // If we've seen this pattern, skip the section and exit early
+    if (spState.knownPatterns[currentPattern]) {
+      writeBlock(mFormat.format(98), "P" + oFormat8.format(spState.knownPatterns[currentPattern]));
+      spState.sectionSkipped = true;
+      skipRemainingSection();
+      setCurrentPosition(getFramePosition(currentSection.getFinalPosition()));
+      return;
+    } else {
+      spState.knownPatterns[currentPattern] = spState.currentSubprogram;
+    }
+  }
+
   spState.currentSubprogram = ++spState.lastSubprogram;
   writeBlock(mFormat.format(98), "P" + oFormat8.format(spState.currentSubprogram));
-  subprogramStart();
+  subprogramStart(spState.currentSubprogram);
 }
 
-function subprogramStart() {
+function subprogramStart(subprogramNo) {
   redirectToBuffer();
 
   var comment = hasParameter("operation-comment") ? getParameter("operation-comment") : "";
   writeln(
-    "O" + oFormat8.format(spState.currentSubprogram) +
+    "O" + oFormat8.format(subprogramNo) +
     conditional(comment, " " + formatComment(comment))
   );
   gPlaneModal.reset();
@@ -2268,7 +2286,7 @@ function onSectionEnd() {
     onCommand(COMMAND_BREAK_CONTROL);
   }
 
-  if (isRedirecting()) {
+  if (isRedirecting() && !spState.sectionSkipped) {
     subprogramEnd();
   }
 
