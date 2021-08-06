@@ -9,48 +9,7 @@
 
 // ATTENTION: parameter F86 bit 6 must be on for G43.4
 
-!(function (global) {
-  var _ = {};
-
-  _.map = function (arr, f) {
-    arr = arr || [];
-    var result = [];
-    for (var i = 0; i < arr.length; i++) {
-      result.push(f(arr[i], i));
-    }
-    return result;
-  };
-
-  _.filter = function (arr, pred) {
-    arr = arr || [];
-    var result = [];
-    for (var i = 0; i < arr.length; i++) {
-      if (pred(arr[i], i)) {
-        result.push(arr[i]);
-      }
-    }
-    return result;
-  };
-
-  _.find = function (arr, pred) {
-    arr = arr || [];
-    for (var i = 0; i < arr.length; i++) {
-      if (pred(arr[i], i)) {
-        return arr[i];
-      }
-    }
-  };
-
-  _.forEach = function (arr, f) {
-    _.map(arr, f);
-  };
-
-  _.apply = function (f, list, thisArg) {
-    return f.apply(thisArg, list);
-  };
-
-  global._ = _;
-}(this));
+include("post-utilities.cps");
 
 description = "Mazak HCN (Keycult)";
 vendor = "Mazak";
