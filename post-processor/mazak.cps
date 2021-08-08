@@ -37,9 +37,10 @@ allowedCircularPlanes = undefined; // allow any circular motion
 probeMultipleFeatures = true;
 
 groupDefinitions = {
-  documentation: {title: "Documentation", order: 0},
-  formatting: {title: "Formatting", order: 1},
-  keycult: {title: "Keycult", order: 2},
+  postControl:   { title: "Post Processing", order: 0 },
+  documentation: { title: "Documentation",   order: 1 },
+  formatting:    { title: "Formatting",      order: 2 },
+  keycult:       { title: "Keycult",         order: 3 },
 };
 
 properties = {
@@ -175,6 +176,14 @@ properties = {
     type: "boolean",
     value: true,
     scope: "post"
+  },
+  onlyPostFirstPatternedInstance: {
+    title: "Only post first patterned instance",
+    description: "Only post the first of any encountered patterned operation.",
+    group: "postControl",
+    type: "boolean",
+    value: false,
+    scope: "post",
   },
   /*
   // TODO: G61.1
@@ -888,7 +897,31 @@ function writeSectionSummary() {
   comment && writeComment(comment);
 }
 
+var patternState = {
+  knownPatterns: {},
+  skippedSections: {},
+};
+
+function registerSection() {
+  if (currentSection.isPatterned() && getProperty("onlyPostFirstPatternedInstance")) {
+    if (patternState.knownPatterns[currentSection.getPatternId()]) {
+      patternState.skippedSections[currentSection.getId()] = true;
+    }
+    patternState.knownPatterns[currentSection.getPatternId()] = true;
+  }
+}
+
+function skippingSection() {
+  return !!patternState.skippedSections[currentSection.getId()];
+}
+
 function onSection() {
+  registerSection();
+  if (skippingSection()) {
+    skipRemainingSection();
+    return;
+  }
+
   var insertToolCall = isFirstSection() ||
     currentSection.getForceToolChange && currentSection.getForceToolChange() ||
     (tool.number != getPreviousSection().getTool().number);
@@ -899,8 +932,7 @@ function onSection() {
   var newWorkPlane = isFirstSection() ||
     !isSameDirection(getPreviousSection().getGlobalFinalToolAxis(), currentSection.getGlobalInitialToolAxis()) ||
     (currentSection.isOptimizedForMachine() && getPreviousSection().isOptimizedForMachine() &&
-      Vector.diff(getPreviousSection().getFinalToolAxisABC(), currentSection.getInitialToolAxisABC()).length > 1e-4) ||
-    (!machineConfiguration.isMultiAxisConfiguration() && currentSection.isMultiAxis()) ||
+      Vector.diff(getPreviousSection().getFinalToolAxisABC(), currentSection.getInitialToolAxisABC()).length > 1e-4) || (!machineConfiguration.isMultiAxisConfiguration() && currentSection.isMultiAxis()) ||
     (!getPreviousSection().isMultiAxis() && currentSection.isMultiAxis() ||
       getPreviousSection().isMultiAxis() && !currentSection.isMultiAxis()); // force newWorkPlane between indexing and simultaneous operations
 
@@ -2188,6 +2220,10 @@ function onCommand(command) {
 }
 
 function onSectionEnd() {
+  if (skippingSection()) {
+    return;
+  }
+
   if (typeof inspectionProcessSectionEnd == "function") {
     inspectionProcessSectionEnd();
   }
