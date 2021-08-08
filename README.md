@@ -15,7 +15,6 @@ This post processor has been adapted by Keycult for use with an HCN-5000 horizon
 - [x] Tool identifiers
 - [x] Non-number program names
 - [x] Remove naive smoothing implementation
-- [ ] Implement "pattern to WCS" in post
 - [ ] Geometry compensation (G61.1)
 - [ ] Re-implement G5P2 (high speed smoothing, high speed machining)
 - [ ] G117 simultaneous operation (spindle accel/decel, through-spindle coolant)
