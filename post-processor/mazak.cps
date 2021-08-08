@@ -164,7 +164,6 @@ properties = {
   singleResultsFile: {
     title: "Create single results file",
     description: "Set to false if you want to store the measurement results for each probe / inspection toolpath in a separate file",
-    group: 0,
     type: "boolean",
     value: true,
     scope: "post"
@@ -206,7 +205,7 @@ var coolants = [
   {id: COOLANT_OFF, off: 9}
 ];
 
-var permittedCommentChars = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,=_-:#";
+var permittedCommentChars = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz.,=_-:#";
 var permittedToolIdentifierChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-_.";
 
 var gFormat = createFormat({prefix:"G", decimals:1});
@@ -306,8 +305,15 @@ function writeOptionalBlock() {
   }
 }
 
-function formatComment(text) {
-  return "(" + filterText(String(text).toUpperCase(), permittedCommentChars) + ")";
+function formatComment(text, options) {
+  options = options || {}
+  var preformattedText = text;
+
+  if (!options.noUpperCase) {
+    preformattedText = String(preformattedText).toUpperCase();
+  }
+
+  return "(" + filterText(preformattedText, permittedCommentChars) + ")";
 }
 
 function writeComment(text) {
@@ -863,11 +869,30 @@ function onParameter(name, value) {
   }
 }
 
+function writeSectionSummary() {
+  var comment = hasParameter("operation-comment") && getParameter("operation-comment");
+
+  var sectionNumber = parseInt(currentSection.getId(), 10) + 1;
+  var toolNumber = formatToolNumber(currentSection.getTool());
+
+  if (getProperty("useToolIdentifiers")) {
+    toolNumber = " " + toolNumber;
+  }
+
+  var summary = formatComment(
+    "SECTION " + sectionNumber + " - T" + toolNumber,
+    { noUpperCase: true }
+  );
+  writeln(summary);
+
+  comment && writeComment(comment);
+}
+
 function onSection() {
   var insertToolCall = isFirstSection() ||
     currentSection.getForceToolChange && currentSection.getForceToolChange() ||
     (tool.number != getPreviousSection().getTool().number);
-  
+
   retracted = false;
   var newWorkOffset = isFirstSection() ||
     (getPreviousSection().workOffset != currentSection.workOffset); // work offset changes
@@ -896,12 +921,7 @@ function onSection() {
 
   writeln("");
 
-  if (hasParameter("operation-comment")) {
-    var comment = getParameter("operation-comment");
-    if (comment) {
-      writeComment(comment);
-    }
-  }
+  writeSectionSummary();
   
   if (getProperty("showNotes") && hasParameter("notes")) {
     var notes = getParameter("notes");
