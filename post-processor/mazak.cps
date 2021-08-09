@@ -185,20 +185,22 @@ properties = {
     value: false,
     scope: "post",
   },
-  /*
-  // TODO: G61.1
-  // Implementation:
-  // If set to true, always enable G61.1 P0 if it's appropriate for the op (i.e. not drilling/tapping)
-  // Cancel & re-enable at tool changes even if mode isn't changing (safe restart points)
-  // Allow user override to set P to something other than 0
-  useGeometryCompensation: {
-    title: "Use geometry compensation",
-    description: "Specifies if geometry compensation (G61.1) should be used.",
-    type: "boolean",
-    value: true,
-    scope: "post"
+
+  // Operation properties
+  machiningMode: {
+    title: "Machining mode",
+    description: "Sets the machining mode (G61.1 for milling, G63 for tapping)",
+    type: "integer",
+    values: [
+      { title: "Auto", id: 0 },
+      { title: "G61.1 P1 (Rough)", id: 1 },
+      { title: "G61.1 P2 (Smooth)", id: 2 },
+      { title: "G61.1 P3 (Accurate)", id: 3 },
+      { title: "Off (G64)", id: -1 },
+    ],
+    value: 0,
+    scope: "operation",
   },
-  */
 };
 
 var singleLineCoolant = false; // specifies to output multiple coolant codes in one line rather than in separate lines
@@ -915,6 +917,42 @@ function skippingSection() {
   return !!patternState.skippedSections[currentSection.getId()];
 }
 
+function currentSectionIsTappingCycle() {
+  return currentSection.hasAnyCycle() && cycleType && cycleType.search("tapping") !== -1;
+}
+
+function getMachiningMode(section) {
+  if (!section) return -1;
+  return getProperty(properties.geometryCompensation, section.getId());
+}
+
+function setMachiningMode() {
+  var mode = getMachiningMode(currentSection);
+
+  if (isProbeOperation() || (currentSection.hasAnyCycle() && !currentSectionIsTappingCycle())) {
+    writeBlock(gFormat.format(64));
+    return;
+  }
+
+  var geoComp = getGeometryCompensation(currentSection);
+  
+  if (geoComp !== -1 && geoComp !== getGeometryCompensation(getPreviousSection())) {
+    writeBlock(gFormat.format(61.1, "P" + geoComp));
+  }
+}
+
+function cancelGeometryCompensation() {
+  writeBlock(gFormat.format(64));
+}
+
+function cancelGeometryCompensationIfChanging() {
+  var nextGeoComp = getGeometryCompensation(getNextSection());
+
+  if (nextGeoComp !== getGeometryCompensation(currentSection)) {
+    cancelGeometryCompensation();
+  }
+}
+
 function onSection() {
   registerSection();
   if (skippingSection()) {
@@ -1142,11 +1180,12 @@ function onSection() {
     writeBlock(gFormat.format(65), "P" + 9832); // spin the probe on
     inspectionCreateResultsFileHeader();
   } else {
-    // surface Inspection
     if (isInspectionOperation() && (typeof inspectionProcessSectionStart == "function")) {
       inspectionProcessSectionStart();
     }
   }
+
+  setGeometryCompensation();
 }
 
 function defineWorkPlane(_section, _setWorkPlane) {
@@ -2223,6 +2262,8 @@ function onSectionEnd() {
   if (skippingSection()) {
     return;
   }
+
+  cancelGeometryCompensationIfChanging();
 
   if (typeof inspectionProcessSectionEnd == "function") {
     inspectionProcessSectionEnd();
