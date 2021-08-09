@@ -26,3 +26,27 @@ This post processor has been adapted by Keycult for use with an HCN-5000 horizon
 | Property | Group | Description | Values |
 | --- | --- | --- | --- |
 | Example property | Formatting | This is an example description | True (default) or False |
+
+---
+
+### Formatting
+
+#### Example property
+
+This is an example of a property description. Doing it like this is a bit better maybe.
+
+It allows me to go onto another line which is kinda nice.
+
+**Values:**
+
++ True *
++ False
+
+#### Another example property
+
+This is what a second one would look like. 
+
+**Values:**
+
++ True
++ False *
