@@ -20,3 +20,9 @@ This post processor has been adapted by Keycult for use with an HCN-5000 horizon
 - [ ] G117 simultaneous operation (spindle accel/decel, through-spindle coolant)
 - [ ] Niagara coolant control (M130)
 - [ ] High pressure coolant control (M100 - M106 to set coolant pressure levels)
+
+## Post properties
+
+| Property | Group | Description | Values |
+| --- | --- | --- | --- |
+| Example property | Formatting | This is an example description | True (default) or False |
