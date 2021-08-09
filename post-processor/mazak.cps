@@ -189,14 +189,15 @@ properties = {
   // Operation properties
   machiningMode: {
     title: "Machining mode",
-    description: "Sets the machining mode (G61.1 for milling, G63 for tapping)",
+    description: "Sets the machining mode for the operation",
     type: "integer",
     values: [
       { title: "Auto", id: 0 },
       { title: "G61.1 P1 (Rough)", id: 1 },
       { title: "G61.1 P2 (Smooth)", id: 2 },
       { title: "G61.1 P3 (Accurate)", id: 3 },
-      { title: "Off (G64)", id: -1 },
+      { title: "G63 (Tapping)", id: -3 },
+      { title: "G64 (Cutting)", id: -4 },
     ],
     value: 0,
     scope: "operation",
@@ -917,22 +918,40 @@ function skippingSection() {
   return !!patternState.skippedSections[currentSection.getId()];
 }
 
-function currentSectionIsTappingCycle() {
+function isTappingCycle() {
   return currentSection.hasAnyCycle() && cycleType && cycleType.search("tapping") !== -1;
 }
 
-function getMachiningMode(section) {
-  if (!section) return -1;
+function getMachiningMode() {
+  if (!section || isProbeOperation()) {
+    return undefined;
+  } else if (isTappingCycle) {
+    return -3;
+  
   return getProperty(properties.geometryCompensation, section.getId());
 }
 
+var lastMachiningMode;
 function setMachiningMode() {
   var mode = getMachiningMode(currentSection);
 
-  if (isProbeOperation() || (currentSection.hasAnyCycle() && !currentSectionIsTappingCycle())) {
-    writeBlock(gFormat.format(64));
+  if (mode === lastMachiningMode) {
     return;
+  } else if (mode === -1) {
+    writeBlock(gFormat.format(64));
+    lastMachiningMode = -1;
+  } else if (isProbeOperation()) {
+    writeBlock(gFormat.format(64));
+    lastMachiningMode = undefined;
+  } else if (isTappingCycle()) {
+    writeBlock(gFormat.format(63));
+  } else {
+    writeBlock(gFormat.format(61.1, "P" + mode));
   }
+  
+  if (mode === 
+  
+  writeBlock(gFormat.format(61.1, "P" + mode);
 
   var geoComp = getGeometryCompensation(currentSection);
   
