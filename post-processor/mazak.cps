@@ -243,7 +243,7 @@ properties = {
   },
 };
 
-var singleLineCoolant = false; // specifies to output multiple coolant codes in one line rather than in separate lines
+var singleLineCoolant = false; // output all coolant codes on one line
 var coolants = [
   {id: COOLANT_FLOOD, on: 8},
   {id: COOLANT_MIST, on: 7},
@@ -255,6 +255,13 @@ var coolants = [
   {id: COOLANT_FLOOD_THROUGH_TOOL, on: [8, 131], off: 9},
   {id: COOLANT_OFF, off: 9}
 ];
+
+_.forEach(coolants, function (coolant) {
+  if (_.isNumber(coolant.on))  coolant.on  = _.ensureArray(coolant.on);
+  if (_.isNumber(coolant.off)) coolant.off = _.ensureArray(coolant.off);
+});
+
+var defaultCoolantOff = _.find(coolants, function (c) { c.id === COOLANT_OFF });
 
 var permittedCommentChars = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz.,=_-:#";
 var permittedToolIdentifierChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-_.";
@@ -1182,7 +1189,10 @@ function onSection() {
 
   setProbeAngle(); // output probe angle rotations if required
 
-  // set coolant after we have positioned at Z
+  if (coolant === COOLANT_THROUGH_TOOL || coolant === COOLANT_FLOOD_THROUGH_TOOL) {
+    setTSCPressure();
+  }
+
   setCoolant(tool.coolant);
   
   forceAny();
@@ -2202,85 +2212,65 @@ var coolantOff = undefined;
 
 function setCoolant(coolant) {
   var coolantCodes = getCoolantCodes(coolant);
-  if (Array.isArray(coolantCodes)) {
+  
+  if (coolantCodes) {
     if (singleLineCoolant) {
       writeBlock(coolantCodes.join(getWordSeparator()));
     } else {
-      for (var c in coolantCodes) {
-        writeBlock(coolantCodes[c]);
-      }
+      _.forEach(coolantCodes, writeBlock);
     }
-    
-    if (coolant === COOLANT_THROUGH_TOOL || coolant === COOLANT_FLOOD_THROUGH_TOOL) {
-      setTSCPressure();
-    }
-    
-    return undefined;
   }
-  return coolantCodes;
+}
+
+function getCoolantActivations(coolant) {
+  var newCoolant = _.find(coolants, function (c) { return c.id === coolant });
+  
+  if (newCoolant.id === COOLANT_OFF) {
+    return {
+      activate: coolantOff || newCoolant.off,
+    };
+  } else {
+    var activate = newCoolant.on;
+  
+    // Deactivate any old coolants before activating new ones
+    if (coolantOff !== undefined currentCoolantMode !== COOLANT_OFF) {
+      activate = activate ? coolantOff.concat(activate) : coolantOff;
+    }
+  
+    return {
+      activate: activate,
+      deactivate: newCoolant.off || defaultCoolantOff.off,
+    };
+  }
 }
 
 function getCoolantCodes(coolant) {
-  var multipleCoolantBlocks = new Array(); // create a formatted array to be passed into the outputted line
-  if (!coolants) {
-    error(localize("Coolants have not been defined."));
-  }
-  if (isProbeOperation()) { // avoid coolant output for probing
+  validate(coolants, "Coolants have not been defined.");
+  
+  if (isProbeOperation()) {
     coolant = COOLANT_OFF;
   }
-  if (coolant == currentCoolantMode) {
-    return undefined; // coolant is already active
+  
+  if (coolant === currentCoolantMode) {
+    return;
   }
-  if ((coolant != COOLANT_OFF) && (currentCoolantMode != COOLANT_OFF) && (coolantOff != undefined)) {
-    if (Array.isArray(coolantOff)) {
-      for (var i in coolantOff) {
-        multipleCoolantBlocks.push(mFormat.format(coolantOff[i]));
-      }
-    } else {
-      multipleCoolantBlocks.push(mFormat.format(coolantOff));
-    }
-  }
-
-  var m;
-  var coolantCodes = {};
-  for (var c in coolants) { // find required coolant codes into the coolants array
-    if (coolants[c].id == coolant) {
-      coolantCodes.on = coolants[c].on;
-      if (coolants[c].off != undefined) {
-        coolantCodes.off = coolants[c].off;
-        break;
-      } else {
-        for (var i in coolants) {
-          if (coolants[i].id == COOLANT_OFF) {
-            coolantCodes.off = coolants[i].off;
-            break;
-          }
-        }
-      }
-    }
-  }
-  if (coolant == COOLANT_OFF) {
-    m = !coolantOff ? coolantCodes.off : coolantOff; // use the default coolant off command when an 'off' value is not specified
-  } else {
-    coolantOff = coolantCodes.off;
-    m = coolantCodes.on;
-  }
-
-  if (!m) {
+  
+  var nextCoolant = getCoolantActivations(coolant);
+  
+  if (!nextCoolant.activate) {
     onUnsupportedCoolant(coolant);
-    m = 9;
-  } else {
-    if (Array.isArray(m)) {
-      for (var i in m) {
-        multipleCoolantBlocks.push(mFormat.format(m[i]));
-      }
-    } else {
-      multipleCoolantBlocks.push(mFormat.format(m));
-    }
-    currentCoolantMode = coolant;
-    return multipleCoolantBlocks; // return the single formatted coolant value
+    return;
   }
-  return undefined;
+  
+  // Save coolant state
+  currentCoolantMode = coolant;
+  if (coolant !== COOLANT_OFF) {
+    coolantOff = nextCoolant.deactivate;
+  }
+
+  return _.map(nextCoolant.activate, function (code) {
+    return mFormat.format(code);
+  });
 }
 
 var mapCommand = {
