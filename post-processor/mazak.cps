@@ -210,6 +210,13 @@ properties = {
     value: "auto",
     scope: "operation",
   },
+  highSpeedMode: {
+    title: "Enable high speed mode",
+    description: "Enables G5 P2 for this operation (not applicable for probing, tapping, etc.)",
+    type: "boolean",
+    value: false,
+    scope: "operation",
+  },
 };
 
 var singleLineCoolant = false; // specifies to output multiple coolant codes in one line rather than in separate lines
@@ -963,6 +970,24 @@ function getMachiningMode() {
   }
 }
 
+function usingHighSpeedMode() {
+  var machiningMode = getMachiningMode();
+  
+  return (
+    !isProbeOperation() &&
+    machiningMode !== "tapping" &&
+    getProperty(properties.highSpeedMode, currentSection.getId())
+  );
+}
+
+function enableHighSpeedMode() {
+  writeBlock(gFormat.format(5), "P2");
+}
+
+function disableHighSpeedMode() {
+  writeBlock(gFormat.format(5), "P0");
+}
+
 function setMachiningMode() {
   var mode = getMachiningMode();
 
@@ -974,6 +999,8 @@ function setMachiningMode() {
   validate(modeCode, "Post processor does not support machining mode: " + String(mode));
 
   writeBlock(machiningModeModal.format(modeCode));
+
+  usingHighSpeedMode() && enableHighSpeedMode();
 }
 
 function onSection() {
@@ -2286,6 +2313,10 @@ function onCommand(command) {
 function onSectionEnd() {
   if (skippingSection()) {
     return;
+  }
+  
+  if (getProperty("enableMachiningModes")) {
+    usingHighSpeedMode() && disableHighSpeedMode();
   }
 
   if (typeof inspectionProcessSectionEnd == "function") {
