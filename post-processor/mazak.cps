@@ -1173,8 +1173,10 @@ function onSection() {
       warning("Spindle speed exceeds maximum value.");
     } 
     
-    auxCodes.push(sOutput.format(spindleSpeed));
-    auxCodes.push(mFormat.format(tool.clockwise ? 3 : 4));
+    auxCodes.push([
+      sOutput.format(spindleSpeed),
+      mFormat.format(tool.clockwise ? 3 : 4)
+    ].join(getWordSeparator());
   }
 
   if (coolant === COOLANT_THROUGH_TOOL || coolant === COOLANT_FLOOD_THROUGH_TOOL) {
