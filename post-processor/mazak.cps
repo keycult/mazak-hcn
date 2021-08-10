@@ -54,7 +54,7 @@ properties = {
     group: "documentation",
     type: "boolean",
     value: true,
-    scope: "post"
+    scope: "post",
   },
   writeTools: {
     title: "Write tool list",
@@ -62,18 +62,18 @@ properties = {
     group: "documentation",
     type: "boolean",
     value: true,
-    scope: "post"
+    scope: "post",
   },
   showNotes: {
-    title: "Show notes",
+    title: "Write operation notes",
     description: "Writes operation notes as comments in the outputted code.",
     group: "documentation",
     type: "boolean",
     value: true,
-    scope: "post"
+    scope: "post",
   },
   showToolComments: {
-    title: "Show tool comments",
+    title: "Write tool comments",
     description: "Writes tool comments after a tool change.",
     group: "documentation",
     type: "boolean",
@@ -81,28 +81,28 @@ properties = {
     scope: "post",
   },
   showSequenceNumbers: {
-    title: "Use sequence numbers",
-    description: "Use sequence numbers for each block of outputted code.",
+    title: "Sequence numbers (1): Enable",
+    description: "Use sequence numbers for each block.",
     group: "formatting",
     type: "boolean",
     value: false,
-    scope: "post"
+    scope: "post",
   },
   sequenceNumberStart: {
-    title: "Start sequence number",
-    description: "The number at which to start the sequence numbers.",
+    title: "Sequence numbers (1): Start at",
+    description: "Start sequence numbers at this value.",
     group: "formatting",
     type: "integer",
     value: 10,
-    scope: "post"
+    scope: "post",
   },
   sequenceNumberIncrement: {
-    title: "Sequence number increment",
-    description: "The amount by which the sequence number is incremented by in each block.",
+    title: "Sequence numbers (2): Increment by",
+    description: "Increment sequence numbers by this amount.",
     group: "formatting",
     type: "integer",
     value: 5,
-    scope: "post"
+    scope: "post",
   },
   separateWordsWithSpace: {
     title: "Separate words with space",
@@ -110,52 +110,52 @@ properties = {
     group: "formatting",
     type: "boolean",
     value: true,
-    scope: "post"
+    scope: "post",
   },
   preloadTool: {
-    title: "Preload tool",
+    title: "Preload next tool",
     description: "Preloads the next tool at a tool change (if any).",
     type: "boolean",
     value: true,
-    scope: "post"
+    scope: "post",
   },
   optionalStop: {
-    title: "Optional stop",
-    description: "Outputs optional stop code during when necessary in the code.",
+    title: "Optional stop before tool change",
+    description: "Outputs optional stop code before each tool change.",
     type: "boolean",
     value: true,
-    scope: "post"
+    scope: "post",
   },
   useRadius: {
-    title: "Radius arcs",
+    title: "Use radius arcs instead of IJK",
     description: "If yes is selected, arcs are outputted using radius values rather than IJK.",
     type: "boolean",
     value: false,
-    scope: "post"
+    scope: "post",
   },
   useParametricFeed: {
-    title: "Parametric feed",
+    title: "Use Q-value parametric feed",
     description: "Specifies the feed value that should be output using a Q value.",
     type: "boolean",
     value: false,
-    scope: "post"
+    scope: "post",
   },
   usePitchForTapping: {
     title: "Use pitch for tapping",
-    description: "Enables the use of pitch instead of feed for the F-word in canned tapping cycles. Your CNC control must be setup for pitch mode!",
+    description: "Enables the use of pitch instead of feed for the F-word in canned tapping cycles.",
     type: "boolean",
     value: false,
-    scope: "post"
+    scope: "post",
   },
   useG54x4: {
-    title: "Use G54.4",
+    title: "Use G54.4 for angular probing",
     description: "Use G54.4 workpiece error compensation for angular probing.",
     type: "boolean",
     value: false,
-    scope: "post"
+    scope: "post",
   },
   safePositionMethod: {
-    title: "Safe Retracts",
+    title: "Safe retract method",
     description: "Select your desired retract option. 'Clearance Height' retracts to the operation clearance height.",
     type: "enum",
     values: [
@@ -164,14 +164,14 @@ properties = {
       {title: "Clearance Height", id: "clearanceHeight"}
     ],
     value: "G53",
-    scope: "post"
+    scope: "post",
   },
   singleResultsFile: {
-    title: "Create single results file",
-    description: "Set to false if you want to store the measurement results for each probe / inspection toolpath in a separate file",
+    title: "Inspection: Create single results file",
+    description: "Set to false if you want to store the measurement results for each probe / inspection toolpath in separate files",
     type: "boolean",
     value: true,
-    scope: "post"
+    scope: "post",
   },
   useToolIdentifiers: {
     title: "Use tool identifiers",
@@ -179,7 +179,7 @@ properties = {
     group: "keycult",
     type: "boolean",
     value: true,
-    scope: "post"
+    scope: "post",
   },
   onlyPostFirstPatternedInstance: {
     title: "Only post first patterned instance",
