@@ -918,57 +918,61 @@ function skippingSection() {
   return !!patternState.skippedSections[currentSection.getId()];
 }
 
+function writeGeometryComp(mode) {
+  writeBlock(gFormat.format(61.1), "P" + mode);
+}
+
+var machiningModeState = {
+  lastMode: undefined,
+  handlers: {
+    "-4": 64,
+    "-3": 63,
+    "0": writeGeometryComp,
+    "1": writeGeometryComp,
+    "2": writeGeometryComp,
+    "3": writeGeometryComp,
+  },
+};
+
 function isTappingCycle() {
-  return currentSection.hasAnyCycle() && cycleType && cycleType.search("tapping") !== -1;
+  var tappingCycles = [
+    "left-tapping",
+    "right-tapping",
+    "tapping",
+    "left-tapping-with-chip-breaking",
+    "right-tapping-with-chip-breaking",
+    "tapping-with-chip-breaking",
+  ];
+
+  return _.any(tappingCycles, function (cycle) { return currentSection.hasCycle(cycle) });
 }
 
 function getMachiningMode() {
-  if (!section || isProbeOperation()) {
+  if (isProbeOperation()) {
     return undefined;
-  } else if (isTappingCycle) {
-    return -3;
-  
-  return getProperty(properties.geometryCompensation, section.getId());
-}
-
-var lastMachiningMode;
-function setMachiningMode() {
-  var mode = getMachiningMode(currentSection);
-
-  if (mode === lastMachiningMode) {
-    return;
-  } else if (mode === -1) {
-    writeBlock(gFormat.format(64));
-    lastMachiningMode = -1;
-  } else if (isProbeOperation()) {
-    writeBlock(gFormat.format(64));
-    lastMachiningMode = undefined;
   } else if (isTappingCycle()) {
-    writeBlock(gFormat.format(63));
+    return -3;
   } else {
-    writeBlock(gFormat.format(61.1, "P" + mode));
-  }
-  
-  if (mode === 
-  
-  writeBlock(gFormat.format(61.1, "P" + mode);
-
-  var geoComp = getGeometryCompensation(currentSection);
-  
-  if (geoComp !== -1 && geoComp !== getGeometryCompensation(getPreviousSection())) {
-    writeBlock(gFormat.format(61.1, "P" + geoComp));
+    return getProperty(properties.machiningMode, currentSection.getId());
   }
 }
 
-function cancelGeometryCompensation() {
-  writeBlock(gFormat.format(64));
-}
+function setMachiningMode() {
+  var mode = getMachiningMode();
 
-function cancelGeometryCompensationIfChanging() {
-  var nextGeoComp = getGeometryCompensation(getNextSection());
+  if (mode === undefined || mode === machiningModeState.lastMode) {
+    return;
+  }
 
-  if (nextGeoComp !== getGeometryCompensation(currentSection)) {
-    cancelGeometryCompensation();
+  var handler = machiningModeState.handlers[mode];
+  validate(handler, 'No handler for machining mode "' + mode + '"');
+
+  machiningModeState.lastMode = mode;
+
+  if (_.isFunction(handler)) {
+    return handler(mode);
+  } else {
+    return writeBlock(gFormat.format(handler));
   }
 }
 
@@ -1204,7 +1208,7 @@ function onSection() {
     }
   }
 
-  setGeometryCompensation();
+  setMachiningMode();
 }
 
 function defineWorkPlane(_section, _setWorkPlane) {
@@ -2281,8 +2285,6 @@ function onSectionEnd() {
   if (skippingSection()) {
     return;
   }
-
-  cancelGeometryCompensationIfChanging();
 
   if (typeof inspectionProcessSectionEnd == "function") {
     inspectionProcessSectionEnd();
