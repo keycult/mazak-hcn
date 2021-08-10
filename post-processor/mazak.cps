@@ -2305,15 +2305,13 @@ function onSectionEnd() {
   }
 
   writeBlock(gPlaneModal.format(17));
-  if (!isLastSection() && (getNextSection().getTool().coolant != tool.coolant)) {
-    setCoolant(COOLANT_OFF);
-  }
-  if (((getCurrentSectionId() + 1) >= getNumberOfSections()) ||
-      (tool.number != getNextSection().getTool().number)) {
+
+  // Run break control on last section or if the tool is changing
+  if (isLastSection() || tool.number !== getNextSection().getTool().number) {
     onCommand(COMMAND_BREAK_CONTROL);
   }
 
-  // the code below gets the machine angles from previous operation.  closestABC must also be set to true
+  // the code below gets the machine angles from previous operation. closestABC must also be set to true
   if (currentSection.isMultiAxis() && currentSection.isOptimizedForMachine()) {
     currentMachineABC = currentSection.getFinalToolAxisABC();
   }
@@ -2324,6 +2322,7 @@ function onSectionEnd() {
       setProbeAngle(); // output probe angle rotations if required
     }
   }
+  
   forceAny();
 }
 
