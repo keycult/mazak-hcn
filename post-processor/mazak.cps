@@ -438,9 +438,13 @@ function setFeedrateMode(reset) {
 }
 
 function onOpen() {
-  receivedMachineConfiguration = (typeof machineConfiguration.isReceived == "function") ? machineConfiguration.isReceived() :
-    ((machineConfiguration.getDescription() != "") || machineConfiguration.isMultiAxisConfiguration());
-  activateMachine(); // enable the machine optimizations and settings
+  receivedMachineConfiguration =
+    typeof machineConfiguration.isReceived === "function" ?           
+    machineConfiguration.isReceived() :
+    (machineConfiguration.getDescription() !== "" ||
+      machineConfiguration.isMultiAxisConfiguration());
+  
+  activateMachine();
 
   if (getProperty("useRadius")) {
     maximumCircularSweep = toRad(90); // avoid potential center calculation errors for CNC
@@ -481,13 +485,13 @@ function onOpen() {
   if (getProperty("writeMachine") && (vendor || model || description)) {
     writeComment(localize("Machine"));
     if (vendor) {
-      writeComment("  " + localize("vendor") + ": " + vendor);
+      writeComment("  " + localize("Vendor") + ": " + vendor);
     }
     if (model) {
-      writeComment("  " + localize("model") + ": " + model);
+      writeComment("  " + localize("Model") + ": " + model);
     }
     if (description) {
-      writeComment("  " + localize("description") + ": "  + description);
+      writeComment("  " + localize("Description") + ": "  + description);
     }
   }
 
@@ -500,9 +504,7 @@ function onOpen() {
   if (getProperty("writeTools")) {
     var zRanges = {};
     if (is3D()) {
-      var numberOfSections = getNumberOfSections();
-      for (var i = 0; i < numberOfSections; ++i) {
-        var section = getSection(i);
+      _.forEach(getSection, function (section) {
         var zRange = section.getGlobalZRange();
         var tool = section.getTool();
         if (zRanges[tool.number]) {
@@ -510,47 +512,57 @@ function onOpen() {
         } else {
           zRanges[tool.number] = zRange;
         }
-      }
+      });
     }
 
     var tools = getToolTable();
-    if (tools.getNumberOfTools() > 0) {
-      for (var i = 0; i < tools.getNumberOfTools(); ++i) {
-        var tool = tools.getTool(i);
-        var comment = "T" + toolFormat.format(tool.number) + " " +
-          "D=" + xyzFormat.format(tool.diameter) + " " +
-          localize("CR") + "=" + xyzFormat.format(tool.cornerRadius);
-        if ((tool.taperAngle > 0) && (tool.taperAngle < Math.PI)) {
-          comment += " " + localize("TAPER") + "=" + taperFormat.format(tool.taperAngle) + localize("deg");
-        }
-        if (zRanges[tool.number]) {
-          comment += " - " + localize("ZMIN") + "=" + xyzFormat.format(zRanges[tool.number].getMinimum());
-        }
-        comment += " - " + getToolTypeName(tool.type);
-        writeComment(comment);
+    _.forEach(tools.getTool.bind(tools), function (tool) {
+      var comment = "T";
+      
+      if (getProperty("useToolIdentifiers")) {
+        comment += " ";
       }
+      
+      comment += formatToolNumber(tool);
+      comment += " D=" + xyzFormat.format(tool.diameter);
+      comment += " CR=" + xyzFormat.format(tool.cornerRadius);
+      
+      if (tool.taperAngle > 0 && tool.taperAngle < Math.PI) {
+        comment += " TAPER=" + taperFormat.format(tool.taperAngle) + "DEG";
+      }
+      
+      var zRange = zRanges[tool.number];
+      if (zRange) {
+        comment += " ZMIN=" + xyzFormat.format(zRange.getMinimum());
+      }
+      
+      comment += " - " + getToolTypeName(tool.type);
+      
+      writeComment(comment);
+    });
+  }
+
+  if (getNumberOfSections() > 0 && getSection(0).workOffset === 0) {
+    var nonZeroOffset = _.any(getSection, function (section) {
+      return section.workOffset > 0;
+    });
+    
+    if (nonZeroOffset) {
+      error("Using multiple work offsets is not possible if the initial work offset is 0.");
     }
   }
 
-  if ((getNumberOfSections() > 0) && (getSection(0).workOffset == 0)) {
-    for (var i = 0; i < getNumberOfSections(); ++i) {
-      if (getSection(i).workOffset > 0) {
-        error(localize("Using multiple work offsets is not possible if the initial work offset is 0."));
-        return;
-      }
-    }
-  }
+  writeBlock(
+    gAbsIncModal.format(90),
+    gFeedModeModal.format(94),
+    gPlaneModal.format(17),
+    gFormat.format(49)
+  );
 
-  // absolute coordinates and feed per min
-  writeBlock(gAbsIncModal.format(90), gFeedModeModal.format(94), gPlaneModal.format(17), gFormat.format(49));
-
-  switch (unit) {
-  case IN:
+  if (unit === IN) {
     writeBlock(gUnitModal.format(20));
-    break;
-  case MM:
+  } else if (unit === MM) {
     writeBlock(gUnitModal.format(21));
-    break;
   }
 
   onCommand(COMMAND_START_CHIP_TRANSPORT);
