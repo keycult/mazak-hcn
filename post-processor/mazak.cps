@@ -332,6 +332,20 @@ var currentFeedId;
 var maximumCircularRadiiDifference = toPreciseUnit(0.005, MM);
 var retracted = false; // specifies that the tool has been retracted to the safe plane
 
+// Machine configuration
+var compensateToolLength = false; // add the tool length to the pivot distance for nonTCP rotary heads
+var virtualTooltip = false; // translate the pivot point to the virtual tool tip for nonTCP rotary heads
+// internal variables, do not change
+var receivedMachineConfiguration;
+var tcpIsSupported;
+
+// onRewindMachine configuration
+var performRewinds = false; // only use this setting with hardcoded machine configurations, set to true to enable the rewind/reconfigure logic
+var stockExpansion = new Vector(toPreciseUnit(0.1, IN), toPreciseUnit(0.1, IN), toPreciseUnit(0.1, IN)); // expand stock XYZ values
+var safeRetractDistance = (unit == IN) ? 1 : 25; // additional distance to retract out of stock
+var safeRetractFeed = (unit == IN) ? 20 : 500; // retract feed rate
+var safePlungeFeed = (unit == IN) ? 10 : 250; // plunge feed rate
+
 function writeBlock() {
   if (!formatWords(arguments)) {
     return;
@@ -371,72 +385,37 @@ function writeComment(text) {
   writeln(formatComment(text));
 }
 
-// Start of machine configuration logic
-var compensateToolLength = false; // add the tool length to the pivot distance for nonTCP rotary heads
-var virtualTooltip = false; // translate the pivot point to the virtual tool tip for nonTCP rotary heads
-// internal variables, do not change
-var receivedMachineConfiguration;
-var tcpIsSupported;
-
 function activateMachine() {
-  // determine if TCP is supported by the machine
-  tcpIsSupported = false;
-  var axes = [machineConfiguration.getAxisU(), machineConfiguration.getAxisV(), machineConfiguration.getAxisW()];
-  for (var i in axes) {
-    if (axes[i].isEnabled() && axes[i].isTCPEnabled()) {
-      tcpIsSupported = true;
-      break;
-    }
-  }
-
-  // setup usage of multiAxisFeatures
-  useMultiAxisFeatures = getProperty("useMultiAxisFeatures") != undefined ? getProperty("useMultiAxisFeatures") :
-    (typeof useMultiAxisFeatures != "undefined" ? useMultiAxisFeatures : false);
-  useABCPrepositioning = getProperty("useABCPrepositioning") != undefined ? getProperty("useABCPrepositioning") :
-    (typeof useABCPrepositioning != "undefined" ? useABCPrepositioning : false);
-
-  if (!machineConfiguration.isMachineCoordinate(0) && (typeof aOutput != "undefined")) {
-    aOutput.disable();
-  }
-  if (!machineConfiguration.isMachineCoordinate(1) && (typeof bOutput != "undefined")) {
-    bOutput.disable();
-  }
-  if (!machineConfiguration.isMachineCoordinate(2) && (typeof cOutput != "undefined")) {
-    cOutput.disable();
-  }
+  _.forEach([aOutput, bOutput, cOutput], function (output, i) {
+    machineConfiguration.isMachineCoordinate(i) || output.disable();
+  });
 
   if (!machineConfiguration.isMultiAxisConfiguration()) {
     return; // don't need to modify any settings for 3-axis machines
   }
 
-  // retract/reconfigure
-  safeRetractDistance = getProperty("safeRetractDistance") != undefined ? getProperty("safeRetractDistance") :
-    (typeof safeRetractDistance == "number" ? safeRetractDistance : 0);
-  if (machineConfiguration.performRewinds() || (typeof performRewinds == "undefined" ? false : performRewinds)) {
-    machineConfiguration.enableMachineRewinds(); // enables the rewind/reconfigure logic
-    if (typeof stockExpansion != "undefined") {
-      machineConfiguration.setRewindStockExpansion(stockExpansion);
-      if (!receivedMachineConfiguration) {
-        setMachineConfiguration(machineConfiguration);
-      }
-    }
+  if (machineConfiguration.performRewinds() || performRewinds) {
+    machineConfiguration.enableMachineRewinds();
+    machineConfiguration.setRewindStockExpansion(stockExpansion);
+  }
+
+  if (!receivedMachineConfiguration) {
+    setMachineConfiguration(machineConfiguration);
   }
 
   if (machineConfiguration.isHeadConfiguration()) {
-    compensateToolLength = typeof compensateToolLength == "undefined" ? false : compensateToolLength;
-    virtualTooltip = typeof virtualTooltip == "undefined" ? false : virtualTooltip;
     machineConfiguration.setVirtualTooltip(virtualTooltip);
   }
+  
   setFeedrateMode();
 
   if (machineConfiguration.isHeadConfiguration() && compensateToolLength) {
-    for (var i = 0; i < getNumberOfSections(); ++i) {
-      var section = getSection(i);
+    _.forEach(getSection, function (section) {
       if (section.isMultiAxis()) {
-        machineConfiguration.setToolLength(section.getTool().getBodyLength()); // define the tool length for head adjustments
+        machineConfiguration.getToolLength(section.getTool().getBodyLength());
         section.optimizeMachineAnglesByMachine(machineConfiguration, tcpIsSupported ? 0 : 1);
       }
-    }
+    });
   } else {
     optimizeMachineAngles2(tcpIsSupported ? 0 : 1);
   }
@@ -2556,12 +2535,6 @@ function writeProbingToolpathInformation(cycleDepth) {
   }
 }
 
-// Start of onRewindMachine logic
-var performRewinds = false; // only use this setting with hardcoded machine configurations, set to true to enable the rewind/reconfigure logic
-var stockExpansion = new Vector(toPreciseUnit(0.1, IN), toPreciseUnit(0.1, IN), toPreciseUnit(0.1, IN)); // expand stock XYZ values
-safeRetractDistance = (unit == IN) ? 1 : 25; // additional distance to retract out of stock
-safeRetractFeed = (unit == IN) ? 20 : 500; // retract feed rate
-safePlungeFeed = (unit == IN) ? 10 : 250; // plunge feed rate
 
 /** Allow user to override the onRewind logic. */
 function onRewindMachineEntry(_a, _b, _c) {
