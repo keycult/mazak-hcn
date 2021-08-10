@@ -41,6 +41,10 @@ groupDefinitions = {
   documentation: { title: "Documentation",   order: 1 },
   formatting:    { title: "Formatting",      order: 2 },
   keycult:       { title: "Keycult",         order: 3 },
+  
+  // Operation property groups
+  machiningModes: { title: "Machining modes", order: 0 },
+  general:        { title: "General",         order: 1 },
 };
 
 properties = {
@@ -209,6 +213,7 @@ properties = {
     ],
     value: "auto",
     scope: "operation",
+    group: "machiningModes",
   },
   highSpeedMode: {
     title: "Enable high speed mode",
@@ -216,6 +221,7 @@ properties = {
     type: "boolean",
     value: false,
     scope: "operation",
+    group: "machiningModes",
   },
 };
 
