@@ -243,25 +243,19 @@ properties = {
   },
 };
 
-var singleLineCoolant = false; // output all coolant codes on one line
+var coolantOffCodes = [9]; 
 var coolants = [
-  {id: COOLANT_FLOOD, on: 8},
-  {id: COOLANT_MIST, on: 7},
-  {id: COOLANT_THROUGH_TOOL, on: 131, off: 9},
-  {id: COOLANT_AIR, on: 52},
-  {id: COOLANT_AIR_THROUGH_TOOL, on: 132},
-  {id: COOLANT_SUCTION},
-  {id: COOLANT_FLOOD_MIST},
-  {id: COOLANT_FLOOD_THROUGH_TOOL, on: [8, 131], off: 9},
-  {id: COOLANT_OFF, off: 9}
+  { id: COOLANT_FLOOD,              codes: [8] },
+  { id: COOLANT_MIST,               codes: [7] },
+  { id: COOLANT_THROUGH_TOOL,       codes: [131] },
+  { id: COOLANT_FLOOD_THROUGH_TOOL, codes: [8, 131] },
+  { id: COOLANT_AIR,                codes: [52] },
+  { id: COOLANT_AIR_THROUGH_TOOL,   codes: [132] },
+  
+  // Currently unsupported
+  // { id: COOLANT_SUCTION },
+  // { id: COOLANT_FLOOD_MIST },
 ];
-
-_.forEach(coolants, function (coolant) {
-  if (_.isNumber(coolant.on))  coolant.on  = _.ensureArray(coolant.on);
-  if (_.isNumber(coolant.off)) coolant.off = _.ensureArray(coolant.off);
-});
-
-var defaultCoolantOff = _.find(coolants, function (c) { c.id === COOLANT_OFF });
 
 var permittedCommentChars = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz.,=_-:#";
 var permittedToolIdentifierChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-_.";
@@ -1091,7 +1085,7 @@ function onSection() {
   if (insertToolCall) {
     forceWorkPlane();
     
-    setCoolant(COOLANT_OFF);
+    disableCoolant();
   
     if (!isFirstSection() && getProperty("optionalStop")) {
       onCommand(COMMAND_OPTIONAL_STOP);
@@ -1193,7 +1187,7 @@ function onSection() {
     setTSCPressure();
   }
 
-  setCoolant(tool.coolant);
+  enableCoolant(tool.coolant);
   
   forceAny();
   gMotionModal.reset();
@@ -2207,70 +2201,35 @@ function onCircular(clockwise, cx, cy, cz, x, y, z, feed) {
   }
 }
 
-var currentCoolantMode = COOLANT_OFF;
-var coolantOff = undefined;
+var coolantState = {
+  currentMode: COOLANT_OFF,
+};
 
-function setCoolant(coolant) {
-  var coolantCodes = getCoolantCodes(coolant);
-  
-  if (coolantCodes) {
-    if (singleLineCoolant) {
-      writeBlock(coolantCodes.join(getWordSeparator()));
-    } else {
-      _.forEach(coolantCodes, writeBlock);
-    }
+function enableCoolant(coolantMode) {
+  // Turn off coolant if we're changing coolant modes
+  if (coolantMode !== coolantState.currentMode) {
+    writeBlock(coolantOffCodes.join(getWordSeparator());
   }
+
+  writeBlock(coolantCodesToEnable(coolantMode).join(getWordSeparator()));
+  coolantState.currentMode = coolantMode;
 }
 
-function getCoolantActivations(coolant) {
-  var newCoolant = _.find(coolants, function (c) { return c.id === coolant });
-  
-  if (newCoolant.id === COOLANT_OFF) {
-    return {
-      activate: coolantOff || newCoolant.off,
-    };
-  } else {
-    var activate = newCoolant.on;
-  
-    // Deactivate any old coolants before activating new ones
-    if (coolantOff !== undefined currentCoolantMode !== COOLANT_OFF) {
-      activate = activate ? coolantOff.concat(activate) : coolantOff;
-    }
-  
-    return {
-      activate: activate,
-      deactivate: newCoolant.off || defaultCoolantOff.off,
-    };
-  }
+function disableCoolant() {
+  writeBlock(coolantOffCodes.join(getWordSeparator()));
+  coolantState.currentMode = COOLANT_OFF;
 }
 
-function getCoolantCodes(coolant) {
-  validate(coolants, "Coolants have not been defined.");
-  
-  if (isProbeOperation()) {
-    coolant = COOLANT_OFF;
+function coolantCodesToEnable(coolantMode) {
+  // Nothing to enable if not changing mode or if turning coolant off
+  if (coolantMode === COOLANT_OFF || coolantMode === coolantState.currentMode) {
+    return [];
   }
   
-  if (coolant === currentCoolantMode) {
-    return;
-  }
+  var coolant = _.find(coolants, function (c) { return c.id === coolantMode });
+  validate(!!coolant, "Post processor does not support coolant mode: " + coolantMode);
   
-  var nextCoolant = getCoolantActivations(coolant);
-  
-  if (!nextCoolant.activate) {
-    onUnsupportedCoolant(coolant);
-    return;
-  }
-  
-  // Save coolant state
-  currentCoolantMode = coolant;
-  if (coolant !== COOLANT_OFF) {
-    coolantOff = nextCoolant.deactivate;
-  }
-
-  return _.map(nextCoolant.activate, function (code) {
-    return mFormat.format(code);
-  });
+  return _.map(coolant.codes, function (code) { return mFormat.format(code) });
 }
 
 var mapCommand = {
@@ -2291,10 +2250,10 @@ function onCommand(command) {
     forceSpindleSpeed = true;
     return;
   case COMMAND_COOLANT_ON:
-    setCoolant(COOLANT_FLOOD);
+    enableCoolant(COOLANT_FLOOD);
     return;
   case COMMAND_COOLANT_OFF:
-    setCoolant(COOLANT_OFF);
+    disableCoolant();
     return;
   case COMMAND_START_SPINDLE:
     onCommand(tool.clockwise ? COMMAND_SPINDLE_CLOCKWISE : COMMAND_SPINDLE_COUNTERCLOCKWISE);
