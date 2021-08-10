@@ -40,7 +40,6 @@ groupDefinitions = {
   postControl:   { title: "Post Processing", order: 0 },
   documentation: { title: "Documentation",   order: 1 },
   formatting:    { title: "Formatting",      order: 2 },
-  keycult:       { title: "Keycult",         order: 3 },
   
   // Operation property groups
   machiningModes:   { title: "Machining modes", order: 0 },
@@ -176,7 +175,6 @@ properties = {
   useToolIdentifiers: {
     title: "Use tool identifiers",
     description: "Uses alphanumeric tool identifiers instead of tool numbers to call tools.",
-    group: "keycult",
     type: "boolean",
     value: true,
     scope: "post",
@@ -193,6 +191,13 @@ properties = {
     title: "Enable machining modes defined per operation",
     description: "Machining modes are specified in the operation dialogue Post Processing tab",
     group: "postControl",
+    type: "boolean",
+    value: true,
+    scope: "post",
+  },
+  useG117: {
+    title: "Use G117",
+    description: "Uses G117 to execute some auxiliary functions during axis movement (spindle, coolant, etc.)",
     type: "boolean",
     value: true,
     scope: "post",
@@ -1029,18 +1034,21 @@ function setTSCPressure() {
 
 function onSection() {
   registerSection();
-  if (skippingSection()) {
-    skipRemainingSection();
-    return;
-  }
-
-  var insertToolCall = isFirstSection() ||
-    currentSection.getForceToolChange && currentSection.getForceToolChange() ||
-    (tool.number != getPreviousSection().getTool().number);
-
+  skippingSection() && return skipRemainingSection();
+  
   retracted = false;
-  var newWorkOffset = isFirstSection() ||
-    (getPreviousSection().workOffset != currentSection.workOffset); // work offset changes
+
+  var insertToolCall = (
+    isFirstSection() ||
+    currentSection.getForceToolChange && currentSection.getForceToolChange() ||
+    tool.number !== getPreviousSection().getTool().number
+  );
+
+  var newWorkOffset = (
+    isFirstSection() ||
+    getPreviousSection().workOffset !== currentSection.workOffset
+  );
+  
   var newWorkPlane = isFirstSection() ||
     !isSameDirection(getPreviousSection().getGlobalFinalToolAxis(), currentSection.getGlobalInitialToolAxis()) ||
     (currentSection.isOptimizedForMachine() && getPreviousSection().isOptimizedForMachine() &&
@@ -1049,15 +1057,18 @@ function onSection() {
       getPreviousSection().isMultiAxis() && !currentSection.isMultiAxis()); // force newWorkPlane between indexing and simultaneous operations
 
   if (insertToolCall || newWorkOffset || newWorkPlane) {
-    // TODO
-    // can we be stopping the spindle and retracting simultaneously?
-
-    // stop spindle before retract during tool change
     if (insertToolCall && !isFirstSection()) {
-      onCommand(COMMAND_STOP_SPINDLE);
+      if (getProperty(properties.useG117)) {
+        var codes = [gFormat.format(117), mFormat.format(5)].concat(disableCoolant(true));
+        _.apply(writeBlock, codes);
+      } else {
+        writeBlock(mFormat.format(5));
+        disableCoolant();
+      }
     }
     
     writeRetract(Z);
+    
     if (insertToolCall && !isFirstSection()) {
       disableLengthCompensation();
     }
@@ -1084,8 +1095,6 @@ function onSection() {
   
   if (insertToolCall) {
     forceWorkPlane();
-    
-    disableCoolant();
   
     if (!isFirstSection() && getProperty("optionalStop")) {
       onCommand(COMMAND_OPTIONAL_STOP);
@@ -1097,97 +1106,88 @@ function onSection() {
 
     disableLengthCompensation(false);
 
-    var nextTool = undefined;
-    if (getProperty("preloadTool")) {
-      nextTool = getNextTool(tool.number);
-      if (!nextTool) { // preload first tool
-        var firstTool = getSection(0).getTool();
-        if (tool.number != firstTool.number) {
-          nextTool = firstTool;
-        }
-      }
+    var nextTool;
+      
+    if (getProperty(properties.preloadTool)) {
+      nextTool = getNextTool(tool.number) || getSection(0).getTool();
     }
 
     writeBlock(
       mFormat.format(6),
       "T" + formatToolNumber(tool),
-      nextTool ? "T" + formatToolNumber(nextTool) : ""
+      conditional(nextTool, "T" + formatToolNumber(nextTool))
     );
 
-    if (getProperty("showToolComments") && !!tool.comment) {
+    if (getProperty("showToolComments") && tool.comment) {
       writeComment(tool.comment);
     }
   }
   
-  if (tool.type != TOOL_PROBE &&
-      (insertToolCall ||
-      forceSpindleSpeed ||
-      isFirstSection() ||
-      (rpmFormat.areDifferent(spindleSpeed, sOutput.getCurrent())) ||
-      (tool.clockwise != getPreviousSection().getTool().clockwise))) {
-    forceSpindleSpeed = false;
-    
-    if (spindleSpeed < 1) {
-      error(localize("Spindle speed out of range."));
-      return;
-    }
-    if (spindleSpeed > 99999) {
-      warning(localize("Spindle speed exceeds maximum value."));
-    }
-    writeBlock(
-      sOutput.format(spindleSpeed), mFormat.format(tool.clockwise ? 3 : 4)
-    );
-
-    if (forceMultiAxisIndexing || !is3D() || machineConfiguration.isMultiAxisConfiguration()) {
-      // writeBlock(mFormat.format(xxx)); // shortest path traverse
-    }
-  }
-
-  // wcs
-  if (insertToolCall) { // force work offset when changing tool
+  // Force work offset when changing tool
+  if (insertToolCall) {
     currentWorkOffset = undefined;
   }
+  
   var workOffset = currentSection.workOffset;
-  if (workOffset == 0) {
-    warningOnce(localize("Work offset has not been specified. Using G54 as WCS."), WARNING_WORK_OFFSET);
+  validate(workOffset >= 0, "Negative work offset not supported: " + workOffset);
+  
+  if (workOffset === 0) {
+    warningOnce("Work offset has not been specified. Using G54 as WCS.", WARNING_WORK_OFFSET);
     workOffset = 1;
   }
-  if (workOffset != currentWorkOffset) {
+  
+  if (workOffset !== currentWorkOffset) {
     if (cancelTiltFirst) {
       cancelWorkPlane();
     }
     forceWorkPlane();
-  }
-  // alternatively use 54.2
-  if (workOffset > 0) {
+    
     if (workOffset > 6) {
       var code = workOffset - 6;
-      if (code > 48) {
-        error(localize("Work offset out of range."));
-        return;
-      }
-      if (workOffset != currentWorkOffset) {
-        writeBlock(gFormat.format(54.1), "P" + code);
-        currentWorkOffset = workOffset;
-      }
+      writeBlock(gFormat.format(54.1), "P" + code);
     } else {
-      if (workOffset != currentWorkOffset) {
-        writeBlock(gFormat.format(53 + workOffset)); // G54->G59
-        currentWorkOffset = workOffset;
-      }
+      writeBlock(gFormat.format(53 + workOffset));
     }
+    
+    currentWorkOffset = workOffset;  
   }
 
   forceXYZ();
   defineWorkPlane(currentSection, true);
 
   setProbeAngle(); // output probe angle rotations if required
+  
+  var auxCodes = [];
+  
+  if (tool.type !== TOOL_PROBE &&
+      (insertToolCall ||
+      forceSpindleSpeed ||
+      isFirstSection() ||
+      rpmFormat.areDifferent(spindleSpeed, sOutput.getCurrent()) ||
+      tool.clockwise !== getPreviousSection().getTool().clockwise)) {
+    forceSpindleSpeed = false;
+    
+    validate(spindleSpeed >= 1, "Spindle speed out of range: " + spindleSpeed);
+    
+    if (spindleSpeed > 99999) {
+      warning("Spindle speed exceeds maximum value.");
+    } 
+    
+    auxCodes.push(sOutput.format(spindleSpeed));
+    auxCodes.push(mFormat.format(tool.clockwise ? 3 : 4));
+  }
 
   if (coolant === COOLANT_THROUGH_TOOL || coolant === COOLANT_FLOOD_THROUGH_TOOL) {
     setTSCPressure();
   }
 
-  enableCoolant(tool.coolant);
+  auxCodes = auxCodes.concat(enableCoolant(tool.coolant, true));
+  
+  if (getProperty(properties.useG117)) {
+    _.apply(writeBlock, [gFormat.format(117)].concat(auxCodes));
+  } else {
+    _.forEach(auxCodes, writeBlock);
+  }
   
   forceAny();
   gMotionModal.reset();
@@ -2205,19 +2205,31 @@ var coolantState = {
   currentMode: COOLANT_OFF,
 };
 
-function enableCoolant(coolantMode) {
+function enableCoolant(coolantMode, suppressWrite) {
   // Turn off coolant if we're changing coolant modes
   if (coolantMode !== coolantState.currentMode) {
     writeBlock(coolantOffCodes.join(getWordSeparator());
   }
-
-  writeBlock(coolantCodesToEnable(coolantMode).join(getWordSeparator()));
+  
   coolantState.currentMode = coolantMode;
+  
+  var mCodes = coolantCodesToEnable(coolantMode);
+  !suppressWrite && writeBlock(mCodes.join(getWordSeparator()));  
+  
+  return mCodes;
 }
 
-function disableCoolant() {
-  writeBlock(coolantOffCodes.join(getWordSeparator()));
+function disableCoolant(suppressWrite) {
+  if (coolantState.currentMode === COOLANT_OFF) {
+    return [];
+  }
+  
   coolantState.currentMode = COOLANT_OFF;
+  
+  var mCodes = _.map(coolantOffCodes, function (code) { return mFormat.format(code) });
+  !suppressWrite && writeBlock(mCodes.join(getWordSeparator()));
+  
+  return mCodes;
 }
 
 function coolantCodesToEnable(coolantMode) {
