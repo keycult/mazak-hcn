@@ -2233,14 +2233,16 @@ function coolantCodesToEnable(coolantMode) {
 }
 
 var mapCommand = {
-  COMMAND_STOP:0,
-  COMMAND_OPTIONAL_STOP:1,
-  COMMAND_END:2,
-  COMMAND_SPINDLE_CLOCKWISE:3,
-  COMMAND_SPINDLE_COUNTERCLOCKWISE:4,
-  COMMAND_STOP_SPINDLE:5,
-  COMMAND_ORIENTATE_SPINDLE:19,
-  COMMAND_LOAD_TOOL:6
+  COMMAND_STOP: 0,
+  COMMAND_OPTIONAL_STOP: 1,
+  COMMAND_END: 2,
+  COMMAND_SPINDLE_CLOCKWISE: 3,
+  COMMAND_SPINDLE_COUNTERCLOCKWISE: 4,
+  COMMAND_STOP_SPINDLE: 5,
+  COMMAND_LOAD_TOOL: 6,
+  COMMAND_ORIENTATE_SPINDLE: 19,
+  COMMAND_UNLOCK_MULTI_AXIS: 46,
+  COMMAND_LOCK_MULTI_AXIS: 47,
 };
 
 function onCommand(command) {
@@ -2256,13 +2258,11 @@ function onCommand(command) {
     disableCoolant();
     return;
   case COMMAND_START_SPINDLE:
-    onCommand(tool.clockwise ? COMMAND_SPINDLE_CLOCKWISE : COMMAND_SPINDLE_COUNTERCLOCKWISE);
-    return;
-  case COMMAND_LOCK_MULTI_AXIS:
-    // writeBlock(mFormat.format(47)); // 4th axis
-    return;
-  case COMMAND_UNLOCK_MULTI_AXIS:
-    // writeBlock(mFormat.format(46)); // 4th axis
+    onCommand(
+      tool.clockwise ?
+      COMMAND_SPINDLE_CLOCKWISE :
+      COMMAND_SPINDLE_COUNTERCLOCKWISE
+    );
     return;
   case COMMAND_START_CHIP_TRANSPORT:
     return;
