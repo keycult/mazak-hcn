@@ -43,8 +43,8 @@ groupDefinitions = {
   keycult:       { title: "Keycult",         order: 3 },
   
   // Operation property groups
-  machiningModes: { title: "Machining modes", order: 0 },
-  general:        { title: "General",         order: 1 },
+  machiningModes:   { title: "Machining modes", order: 0 },
+  operationGeneral: { title: "General",         order: 1 },
 };
 
 properties = {
@@ -222,6 +222,24 @@ properties = {
     value: false,
     scope: "operation",
     group: "machiningModes",
+  },
+  tscPressure: {
+    title: "Through-spindle coolant pressure",
+    description: "Sets the high-pressure (Super Flow) system pressure level",
+    type: "integer",
+    values: [
+      { title: "Default", id: 107 },
+      { title: "Level 1", id: 100 },
+      { title: "Level 2", id: 101 },
+      { title: "Level 3", id: 102 },
+      { title: "Level 4", id: 103 },
+      { title: "Level 5", id: 104 },
+      { title: "Level 6", id: 105 },
+      { title: "Level 7", id: 106 },
+    ],
+    value: 107,
+    scope: "operation",
+    group: "operationGeneral",
   },
 };
 
@@ -1007,6 +1025,14 @@ function setMachiningMode() {
   writeBlock(machiningModeModal.format(modeCode));
 
   usingHighSpeedMode() && enableHighSpeedMode();
+}
+
+var tscPressureModal = createModal({}, mFormat);
+tscPressureModal.format(107); // Off by default
+
+function setTSCPressure() {
+  var tscPressure = getProperty(properties.tscPressure, currentSection.getId());
+  writeBlock(tscPressureModal.format(tscPressure));
 }
 
 function onSection() {
@@ -2193,6 +2219,11 @@ function setCoolant(coolant) {
         writeBlock(coolantCodes[c]);
       }
     }
+    
+    if (coolant === COOLANT_THROUGH_TOOL || coolant === COOLANT_FLOOD_THROUGH_TOOL) {
+      setTSCPressure();
+    }
+    
     return undefined;
   }
   return coolantCodes;
