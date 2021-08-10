@@ -185,21 +185,29 @@ properties = {
     value: false,
     scope: "post",
   },
+  enableMachiningModes: {
+    title: "Enable machining modes defined per operation",
+    description: "Machining modes are specified in the operation dialogue Post Processing tab",
+    group: "postControl",
+    type: "boolean",
+    value: true,
+    scope: "post",
+  },
 
   // Operation properties
   machiningMode: {
     title: "Machining mode",
     description: "Sets the machining mode for the operation",
-    type: "integer",
+    type: "enum",
     values: [
-      { title: "Auto", id: 0 },
-      { title: "G61.1 P1 (Rough)", id: 1 },
-      { title: "G61.1 P2 (Smooth)", id: 2 },
-      { title: "G61.1 P3 (Accurate)", id: 3 },
-      { title: "G63 (Tapping)", id: -3 },
-      { title: "G64 (Cutting)", id: -4 },
+      { title: "Auto", id: "auto" },
+      { title: "G61.1 P1 (Rough)", id: "P1" },
+      { title: "G61.1 P2 (Smooth)", id: "P2" },
+      { title: "G61.1 P3 (Accurate)", id: "P3" },
+      { title: "G63 (Tapping)", id: "tapping" },
+      { title: "G64 (Cutting)", id: "cutting" },
     ],
-    value: 0,
+    value: "auto",
     scope: "operation",
   },
 };
@@ -918,40 +926,38 @@ function skippingSection() {
   return !!patternState.skippedSections[currentSection.getId()];
 }
 
-function writeGeometryComp(mode) {
-  writeBlock(gFormat.format(61.1), "P" + mode);
-}
-
-var machiningModeState = {
-  lastMode: undefined,
-  handlers: {
-    "-4": 64,
-    "-3": 63,
-    "0": writeGeometryComp,
-    "1": writeGeometryComp,
-    "2": writeGeometryComp,
-    "3": writeGeometryComp,
-  },
+var MACHINING_MODES = {
+  auto:    gFormat.format(61.1) + " P0",
+  P1:      gFormat.format(61.1) + " P1",
+  P2:      gFormat.format(61.1) + " P2",
+  P3:      gFormat.format(61.1) + " P3",
+  tapping: gFormat.format(63),
+  cutting: gFormat.format(64),
 };
 
+var machiningModeModal = createModal();
+
 function isTappingCycle() {
+  var currentCycle = getParameter("operation:cycleType");
   var tappingCycles = [
-    "left-tapping",
-    "right-tapping",
     "tapping",
-    "left-tapping-with-chip-breaking",
-    "right-tapping-with-chip-breaking",
     "tapping-with-chip-breaking",
+    "left-tapping",
+    "left-tapping-with-chip-breaking",
+    "right-tapping",
+    "right-tapping-with-chip-breaking",
   ];
 
-  return _.any(tappingCycles, function (cycle) { return currentSection.hasCycle(cycle) });
+  return _.any(tappingCycles, function (tappingCycle) {
+    return currentCycle === tappingCycle;
+  });
 }
 
 function getMachiningMode() {
   if (isProbeOperation()) {
-    return undefined;
+    return "cutting";
   } else if (isTappingCycle()) {
-    return -3;
+    return "tapping";
   } else {
     return getProperty(properties.machiningMode, currentSection.getId());
   }
@@ -960,20 +966,14 @@ function getMachiningMode() {
 function setMachiningMode() {
   var mode = getMachiningMode();
 
-  if (mode === undefined || mode === machiningModeState.lastMode) {
+  if (mode === undefined) {
     return;
   }
+  
+  var modeCode = MACHINING_MODES[mode];
+  validate(modeCode, "Post processor does not support machining mode: " + String(mode));
 
-  var handler = machiningModeState.handlers[mode];
-  validate(handler, 'No handler for machining mode "' + mode + '"');
-
-  machiningModeState.lastMode = mode;
-
-  if (_.isFunction(handler)) {
-    return handler(mode);
-  } else {
-    return writeBlock(gFormat.format(handler));
-  }
+  writeBlock(machiningModeModal.format(modeCode));
 }
 
 function onSection() {
@@ -1208,7 +1208,9 @@ function onSection() {
     }
   }
 
-  setMachiningMode();
+  if (getProperty("enableMachiningModes")) {
+    setMachiningMode();
+  }
 }
 
 function defineWorkPlane(_section, _setWorkPlane) {
