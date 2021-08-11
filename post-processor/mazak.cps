@@ -80,7 +80,7 @@ properties = {
     scope: "post",
   },
   showSequenceNumbers: {
-    title: "Sequence numbers (1): Enable",
+    title: "Sequence numbers: Enable",
     description: "Use sequence numbers for each block.",
     group: "formatting",
     type: "boolean",
@@ -88,7 +88,7 @@ properties = {
     scope: "post",
   },
   sequenceNumberStart: {
-    title: "Sequence numbers (1): Start at",
+    title: "Sequence numbers: Start at",
     description: "Start sequence numbers at this value.",
     group: "formatting",
     type: "integer",
@@ -96,7 +96,7 @@ properties = {
     scope: "post",
   },
   sequenceNumberIncrement: {
-    title: "Sequence numbers (2): Increment by",
+    title: "Sequence numbers: Increment by",
     description: "Increment sequence numbers by this amount.",
     group: "formatting",
     type: "integer",
@@ -231,18 +231,18 @@ properties = {
   tscPressure: {
     title: "Through-spindle coolant pressure",
     description: "Sets the high-pressure (Super Flow) system pressure level",
-    type: "integer",
+    type: "enum",
     values: [
-      { title: "Default", id: 107 },
-      { title: "Level 1", id: 100 },
-      { title: "Level 2", id: 101 },
-      { title: "Level 3", id: 102 },
-      { title: "Level 4", id: 103 },
-      { title: "Level 5", id: 104 },
-      { title: "Level 6", id: 105 },
-      { title: "Level 7", id: 106 },
+      { title: "Default", id: "107" },
+      { title: "Level 1", id: "100" },
+      { title: "Level 2", id: "101" },
+      { title: "Level 3", id: "102" },
+      { title: "Level 4", id: "103" },
+      { title: "Level 5", id: "104" },
+      { title: "Level 6", id: "105" },
+      { title: "Level 7", id: "106" },
     ],
-    value: 107,
+    value: "107",
     scope: "operation",
     group: "operationGeneral",
   },
@@ -1033,7 +1033,7 @@ var tscPressureModal = createModal({}, mFormat);
 tscPressureModal.format(107); // Off by default
 
 function setTSCPressure() {
-  var tscPressure = getProperty(properties.tscPressure, currentSection.getId());
+  var tscPressure = parseInt(getProperty(properties.tscPressure, currentSection.getId()), 10);
   writeBlock(tscPressureModal.format(tscPressure));
 }
 
@@ -1190,7 +1190,7 @@ function onSection() {
 
   auxCodes = auxCodes.concat(enableCoolant(tool.coolant, true));
 
-  if (getProperty(properties.useG117)) {
+  if (getProperty(properties.useG117) && auxCodes.length > 0) {
     _.apply(writeBlock, [gFormat.format(117)].concat(auxCodes));
   } else {
     _.forEach(auxCodes, function (code) { writeBlock(code) });
