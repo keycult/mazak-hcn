@@ -1189,7 +1189,7 @@ function onSection() {
   }
 
   auxCodes = auxCodes.concat(enableCoolant(tool.coolant, true));
-  
+
   if (getProperty(properties.useG117)) {
     _.apply(writeBlock, [gFormat.format(117)].concat(auxCodes));
   } else {
@@ -2232,11 +2232,10 @@ function enableCoolant(coolantMode, suppressWrite) {
     writeBlock(formatCoolantCodes(coolantOffCodes).join(getWordSeparator()));
   }
   
-  coolantState.currentMode = coolantMode;
-  
   var mCodes = coolantCodesToEnable(coolantMode);
   !suppressWrite && writeBlock(mCodes.join(getWordSeparator())); 
   
+  coolantState.currentMode = coolantMode;
   return mCodes;
 }
 
@@ -2245,11 +2244,10 @@ function disableCoolant(suppressWrite) {
     return [];
   }
   
-  coolantState.currentMode = COOLANT_OFF;
-  
   var mCodes = formatCoolantCodes(coolantOffCodes);
   !suppressWrite && writeBlock(mCodes.join(getWordSeparator()));
   
+  coolantState.currentMode = COOLANT_OFF;
   return mCodes;
 }
 
