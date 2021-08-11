@@ -1211,17 +1211,26 @@ function onSection() {
     if (!machineConfiguration.isHeadConfiguration()) {
       writeBlock(
         gAbsIncModal.format(90),
-        gMotionModal.format(0), xOutput.format(initialPosition.x), yOutput.format(initialPosition.y)
+        gMotionModal.format(0),
+        xOutput.format(initialPosition.x),
+        yOutput.format(initialPosition.y)
       );
-      writeBlock(gMotionModal.format(0), gFormat.format(getOffsetCode()), zOutput.format(initialPosition.z), formatToolH(tool));
+      writeBlock(
+        gMotionModal.format(0),
+        gFormat.format(getOffsetCode()),
+        zOutput.format(initialPosition.z),
+        formatToolH(tool)
+      );
       lengthCompensationActive = true;
     } else {
       writeBlock(
         gAbsIncModal.format(90),
         gMotionModal.format(0),
-        gFormat.format(getOffsetCode()), xOutput.format(initialPosition.x),
+        gFormat.format(getOffsetCode()),
+        xOutput.format(initialPosition.x),
         yOutput.format(initialPosition.y),
-        zOutput.format(initialPosition.z), hFormat.format(lengthOffset)
+        zOutput.format(initialPosition.z),
+        hFormat.format(lengthOffset)
       );
       lengthCompensationActive = true;
     }
@@ -1235,7 +1244,7 @@ function onSection() {
     );
   }
 
-  validate(lengthCompensationActive, "Length compensation is not active.");
+  validate(lengthCompensationActive, "Length compensation should not be active.");
 
   if (getProperty("useParametricFeed") &&
       hasParameter("operation-strategy") &&
@@ -1254,14 +1263,15 @@ function onSection() {
   }
 
   if (isProbeOperation()) {
-    validate(probeVariables.probeAngleMethod != "G68", "You cannot probe while G68 Rotation is in effect.");
-    validate(probeVariables.probeAngleMethod != "G54.4", "You cannot probe while workpiece setting error compensation G54.4 is enabled.");
-    writeBlock(gFormat.format(65), "P" + 9832); // spin the probe on
+    validate(probeVariables.probeAngleMethod !== "G68",
+      "You cannot probe while G68 Rotation is in effect.");
+    validate(probeVariables.probeAngleMethod !== "G54.4",
+      "You cannot probe while workpiece setting error compensation G54.4 is enabled.");
+    
+    writeBlock(gFormat.format(65), "P" + 9832); // probe on
     inspectionCreateResultsFileHeader();
-  } else {
-    if (isInspectionOperation() && (typeof inspectionProcessSectionStart == "function")) {
-      inspectionProcessSectionStart();
-    }
+  } else if (isInspectionOperation() && (typeof inspectionProcessSectionStart == "function")) {
+    inspectionProcessSectionStart();
   }
 
   if (getProperty("enableMachiningModes")) {
