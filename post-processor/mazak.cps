@@ -42,8 +42,8 @@ groupDefinitions = {
   formatting:    { title: "Formatting",      order: 2 },
   
   // Operation property groups
-  machiningModes:   { title: "Machining modes", order: 0 },
-  operationGeneral: { title: "General",         order: 1 },
+  machiningmodes:   { title: "machining modes", order: 0 },
+  operationgeneral: { title: "general",         order: 1 },
 };
 
 properties = {
@@ -963,10 +963,12 @@ var MACHINING_MODES = {
   cutting: gFormat.format(64),
 };
 
-var machiningModeModal = createModal();
+var machiningModeState = {
+  currentMode: undefined,
+};
 
 function isTappingCycle() {
-  var currentCycle = getParameter("operation:cycleType");
+  var currentCycle = hasParameter("operation:cycleType") && getParameter("operation:cycleType");
   var tappingCycles = [
     "tapping",
     "tapping-with-chip-breaking",
@@ -976,7 +978,7 @@ function isTappingCycle() {
     "right-tapping-with-chip-breaking",
   ];
 
-  return _.any(tappingCycles, function (tappingCycle) {
+  return currentCycle && _.any(tappingCycles, function (tappingCycle) {
     return currentCycle === tappingCycle;
   });
 }
@@ -1019,7 +1021,10 @@ function setMachiningMode() {
   var modeCode = MACHINING_MODES[mode];
   validate(modeCode, "Post processor does not support machining mode: " + String(mode));
 
-  writeBlock(machiningModeModal.format(modeCode));
+  if (mode !== machiningModeState.currentMode) {
+    writeBlock(modeCode);
+    machiningModeState.currentMode = mode;
+  }
 
   usingHighSpeedMode() && enableHighSpeedMode();
 }
@@ -1034,7 +1039,7 @@ function setTSCPressure() {
 
 function onSection() {
   registerSection();
-  skippingSection() && return skipRemainingSection();
+  if (skippingSection()) return skipRemainingSection();
   
   retracted = false;
 
@@ -1176,10 +1181,10 @@ function onSection() {
     auxCodes.push([
       sOutput.format(spindleSpeed),
       mFormat.format(tool.clockwise ? 3 : 4)
-    ].join(getWordSeparator());
+    ].join(getWordSeparator()));
   }
 
-  if (coolant === COOLANT_THROUGH_TOOL || coolant === COOLANT_FLOOD_THROUGH_TOOL) {
+  if (tool.coolant === COOLANT_THROUGH_TOOL || tool.coolant === COOLANT_FLOOD_THROUGH_TOOL) {
     setTSCPressure();
   }
 
@@ -1188,7 +1193,7 @@ function onSection() {
   if (getProperty(properties.useG117)) {
     _.apply(writeBlock, [gFormat.format(117)].concat(auxCodes));
   } else {
-    _.forEach(auxCodes, writeBlock);
+    _.forEach(auxCodes, function (code) { writeBlock(code) });
   }
   
   forceAny();
@@ -2217,16 +2222,20 @@ var coolantState = {
   currentMode: COOLANT_OFF,
 };
 
+function formatCoolantCodes(codes) {
+  return _.map(codes, function (code) { return mFormat.format(code) });
+}
+
 function enableCoolant(coolantMode, suppressWrite) {
   // Turn off coolant if we're changing coolant modes
-  if (coolantMode !== coolantState.currentMode) {
-    writeBlock(coolantOffCodes.join(getWordSeparator());
+  if (coolantMode !== coolantState.currentMode && !isFirstSection()) {
+    writeBlock(formatCoolantCodes(coolantOffCodes).join(getWordSeparator()));
   }
   
   coolantState.currentMode = coolantMode;
   
   var mCodes = coolantCodesToEnable(coolantMode);
-  !suppressWrite && writeBlock(mCodes.join(getWordSeparator()));  
+  !suppressWrite && writeBlock(mCodes.join(getWordSeparator())); 
   
   return mCodes;
 }
@@ -2238,7 +2247,7 @@ function disableCoolant(suppressWrite) {
   
   coolantState.currentMode = COOLANT_OFF;
   
-  var mCodes = _.map(coolantOffCodes, function (code) { return mFormat.format(code) });
+  var mCodes = formatCoolantCodes(coolantOffCodes);
   !suppressWrite && writeBlock(mCodes.join(getWordSeparator()));
   
   return mCodes;
@@ -2253,7 +2262,7 @@ function coolantCodesToEnable(coolantMode) {
   var coolant = _.find(coolants, function (c) { return c.id === coolantMode });
   validate(!!coolant, "Post processor does not support coolant mode: " + coolantMode);
   
-  return _.map(coolant.codes, function (code) { return mFormat.format(code) });
+  return formatCoolantCodes(coolant.codes);
 }
 
 var mapCommand = {
