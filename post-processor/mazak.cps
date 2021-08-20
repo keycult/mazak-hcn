@@ -282,6 +282,8 @@ var rpmFormat = createFormat({decimals:0});
 var secFormat = createFormat({decimals:3, forceDecimal:true}); // seconds - range 0.001-99999.999
 var milliFormat = createFormat({decimals:0}); // milliseconds // range 1-99999999
 var taperFormat = createFormat({decimals:1, scale:DEG});
+var oFormat4 = createFormat({ width: 4, zeropad: true, decimals: 0 });
+var oFormat8 = createFormat({ width: 8, zeropad: true, decimals: 0 });
 
 var xOutput = createVariable({prefix:"X"}, xyzFormat);
 var yOutput = createVariable({prefix:"Y"}, xyzFormat);
@@ -469,10 +471,7 @@ function onOpen() {
     var programId = getAsInt(programName);
     validate(programId >= 1 && programId <= 99999999, "Program number is out of range.");
 
-    var oFormat = 
-      programId <= 9999 ?
-      createFormat({ width: 4, zeropad: true, decimals: 0 }) :
-      createFormat({ width: 8, zeropad: true, decimals: 0 });
+    var oFormat = programId <= 9999 ? oFormat4 : oFormat8;
 
     writeln("O" + oFormat.format(programId));
   } catch (e) {
