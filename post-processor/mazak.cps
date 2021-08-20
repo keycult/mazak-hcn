@@ -1,6 +1,6 @@
 /**
-  Copyright (C) 2012-2021 by Autodesk, Inc.
-  All rights reserved.
+Copyright (C) 2012-2021 by Autodesk, Inc.
+All rights reserved.
 
   Mazak post processor configuration.
 
@@ -42,8 +42,8 @@ groupDefinitions = {
   formatting:    { title: "Formatting",      order: 2 },
   
   // Operation property groups
-  machiningmodes:   { title: "machining modes", order: 0 },
-  operationgeneral: { title: "general",         order: 1 },
+  machiningModes:   { title: "Machining Modes", order: 0 },
+  operationGeneral: { title: "General",         order: 1 },
 };
 
 properties = {
@@ -175,6 +175,14 @@ properties = {
   useToolIdentifiers: {
     title: "Use tool identifiers",
     description: "Uses alphanumeric tool identifiers instead of tool numbers to call tools.",
+    type: "boolean",
+    value: true,
+    scope: "post",
+  },
+  useSubprograms: {
+    title: "Use subprograms",
+    description: "Output operations as subprograms.",
+    group: "postControl",
     type: "boolean",
     value: true,
     scope: "post",
@@ -904,6 +912,57 @@ function getWorkPlaneMachineABC(workPlane, _setWorkPlane, rotate) {
   return abc;
 }
 
+var spState = {
+  programs: [],
+  currentSubprogram: undefined,
+  lastSubprogram: 0,
+  knownPatterns: {},
+  sectionSkipped: false,
+};
+
+function subprogramDefine() {
+  if (!getProperty("useSubprograms")) return;
+
+  spState.sectionSkipped = false;
+
+  if (currentSection.isPatterned()) {
+    var currentPattern = currentSection.getPatternId();
+    // If we've seen this pattern, skip the section and exit early
+    if (spState.knownPatterns[currentPattern]) {
+      writeBlock(mFormat.format(98), "P" + oFormat8.format(spState.knownPatterns[currentPattern]));
+      spState.sectionSkipped = true;
+      skipRemainingSection();
+      setCurrentPosition(getFramePosition(currentSection.getFinalPosition()));
+      return;
+    } else {
+      spState.knownPatterns[currentPattern] = spState.currentSubprogram;
+    }
+  }
+
+  spState.currentSubprogram = ++spState.lastSubprogram;
+  writeBlock(mFormat.format(98), "P" + oFormat8.format(spState.currentSubprogram));
+  subprogramStart(spState.currentSubprogram);
+}
+
+function subprogramStart(subprogramNo) {
+  redirectToBuffer();
+
+  var comment = hasParameter("operation-comment") ? getParameter("operation-comment") : "";
+  writeln(
+    "O" + oFormat8.format(subprogramNo) +
+    conditional(comment, " " + formatComment(comment))
+  );
+  gPlaneModal.reset();
+  gMotionModal.reset();
+}
+
+function subprogramEnd() {
+  writeBlock(mFormat.format(99));
+  spState.programs.push(getRedirectionBuffer());
+  forceAny();
+  closeRedirection();
+}
+
 function printProbeResults() {
   return currentSection.getParameter("printResults", 0) == 1;
 }
@@ -1281,6 +1340,8 @@ function onSection() {
   if (getProperty("enableMachiningModes")) {
     setMachiningMode();
   }
+
+  subprogramDefine();
 }
 
 function defineWorkPlane(_section, _setWorkPlane) {
@@ -2341,7 +2402,11 @@ function onSectionEnd() {
     onCommand(COMMAND_BREAK_CONTROL);
   }
 
-  // the code below gets the machine angles from previous operation. closestABC must also be set to true
+  if (isRedirecting() && !spState.sectionSkipped) {
+    subprogramEnd();
+  }
+
+  // the code below gets the machine angles from previous operation.  closestABC must also be set to true
   if (currentSection.isMultiAxis() && currentSection.isOptimizedForMachine()) {
     currentMachineABC = currentSection.getFinalToolAxisABC();
   }
@@ -2611,6 +2676,11 @@ function onClose() {
   onImpliedCommand(COMMAND_END);
   onImpliedCommand(COMMAND_STOP_SPINDLE);
   writeBlock(mFormat.format(30)); // stop program, spindle stop, coolant off
+
+  if (spState.programs.length > 0) {
+    writeln("");
+    write(spState.programs.join("\n"));
+  }
 }
 
 function setProperty(property, value) {
