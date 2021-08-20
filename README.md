@@ -2,6 +2,10 @@
 
 This post processor has been adapted by Keycult for use with an HCN-5000 horizontal machining center. Features applicable to other machine architectures may be changed or removed, and in any event, we have no way of testing them.
 
+## Using this Post Processor
+
+This project is developed using Keycult's [Post Utilities](https://github.com/keycult/post-utilities). The easiest way to use this post is to add both `mazak.cps` and `post-utilities.cps` to a single folder and then use `Link folder` (right-click on `Linked`) in the Post Library to ensure that the Mazak post processor is run in a context that includes the post utilities.
+
 ## TODO
 
 - [x] Tool identifiers
