@@ -482,6 +482,8 @@ function onOpen() {
     writeComment(programComment);
   }
 
+  writeln("");
+
   // dump machine configuration
   var vendor = machineConfiguration.getVendor();
   var model = machineConfiguration.getModel();
@@ -490,19 +492,22 @@ function onOpen() {
   if (getProperty("writeMachine") && (vendor || model || description)) {
     writeComment(localize("Machine"));
     if (vendor) {
-      writeComment("  " + localize("Vendor") + ": " + vendor);
+      writeComment("--" + localize("Vendor") + ": " + vendor);
     }
     if (model) {
-      writeComment("  " + localize("Model") + ": " + model);
+      writeComment("--" + localize("Model") + ": " + model);
     }
     if (description) {
-      writeComment("  " + localize("Description") + ": "  + description);
+      writeComment("--" + localize("Description") + ": "  + description);
     }
+
+    writeln("");
   }
 
   //Probing Surface Inspection
   if (typeof inspectionWriteVariables == "function") {
     inspectionWriteVariables();
+    writeln("");
   }
 
   // dump tool information
@@ -544,6 +549,8 @@ function onOpen() {
       
       writeComment(comment);
     });
+
+    writeln("");
   }
 
   if (getNumberOfSections() > 0 && getSection(0).workOffset === 0) {
