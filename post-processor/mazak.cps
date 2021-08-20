@@ -40,10 +40,6 @@ groupDefinitions = {
   postControl:   { title: "Post Processing", order: 0 },
   documentation: { title: "Documentation",   order: 1 },
   formatting:    { title: "Formatting",      order: 2 },
-  
-  // Operation property groups
-  machiningmodes:   { title: "machining modes", order: 0 },
-  operationgeneral: { title: "general",         order: 1 },
 };
 
 properties = {
@@ -218,7 +214,6 @@ properties = {
     ],
     value: "auto",
     scope: "operation",
-    group: "machiningModes",
   },
   highSpeedMode: {
     title: "Enable high speed mode",
@@ -226,7 +221,6 @@ properties = {
     type: "boolean",
     value: false,
     scope: "operation",
-    group: "machiningModes",
   },
   tscPressure: {
     title: "Through-spindle coolant pressure",
@@ -244,7 +238,6 @@ properties = {
     ],
     value: "107",
     scope: "operation",
-    group: "operationGeneral",
   },
 };
 
