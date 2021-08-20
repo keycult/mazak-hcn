@@ -908,13 +908,13 @@ var spState = {
   programs: [],
   lastSubprogram: 0,
   knownPatterns: {},
-  sectionSkipped: false,
+  skippingPatternInstance: false,
 };
 
 function subprogramDefine() {
   if (!getProperty("useSubprograms")) return;
 
-  spState.sectionSkipped = false;
+  spState.skippingPatternInstance = false;
 
   var nextSubprogram = spState.lastSubprogram + 1;
 
@@ -923,7 +923,7 @@ function subprogramDefine() {
     // If we've seen this pattern, skip the section and exit early
     if (spState.knownPatterns[pattern]) {
       writeBlock(mFormat.format(98), "P" + oFormat4.format(spState.knownPatterns[pattern]));
-      spState.sectionSkipped = true;
+      spState.skippingPatternInstance = true;
       skipRemainingSection();
       setCurrentPosition(getFramePosition(currentSection.getFinalPosition()));
       return;
@@ -2444,7 +2444,7 @@ function onSectionEnd() {
     onCommand(COMMAND_BREAK_CONTROL);
   }
 
-  if (isRedirecting() && !spState.sectionSkipped) {
+  if (isRedirecting() && !spState.skippingPatternInstance) {
     subprogramEnd();
   }
 
