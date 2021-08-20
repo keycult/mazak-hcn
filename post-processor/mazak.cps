@@ -1,6 +1,6 @@
 /**
-Copyright (C) 2012-2021 by Autodesk, Inc.
-All rights reserved.
+  Copyright (C) 2012-2021 by Autodesk, Inc.
+  All rights reserved.
 
   Mazak post processor configuration.
 
@@ -40,10 +40,6 @@ groupDefinitions = {
   postControl:   { title: "Post Processing", order: 0 },
   documentation: { title: "Documentation",   order: 1 },
   formatting:    { title: "Formatting",      order: 2 },
-  
-  // Operation property groups
-  machiningModes:   { title: "Machining Modes", order: 0 },
-  operationGeneral: { title: "General",         order: 1 },
 };
 
 properties = {
@@ -226,7 +222,6 @@ properties = {
     ],
     value: "auto",
     scope: "operation",
-    group: "machiningModes",
   },
   highSpeedMode: {
     title: "Enable high speed mode",
@@ -234,7 +229,6 @@ properties = {
     type: "boolean",
     value: false,
     scope: "operation",
-    group: "machiningModes",
   },
   tscPressure: {
     title: "Through-spindle coolant pressure",
@@ -252,7 +246,6 @@ properties = {
     ],
     value: "107",
     scope: "operation",
-    group: "operationGeneral",
   },
 };
 
