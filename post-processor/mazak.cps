@@ -180,11 +180,11 @@ properties = {
     scope: "post",
   },
   useSubprograms: {
-    title: "Use subprograms",
-    description: "Output operations as subprograms.",
+    title: "Output local subprograms",
+    description: "Output operations as local subprograms, sharing subprograms between pattern instances if possible.",
     group: "postControl",
     type: "boolean",
-    value: true,
+    value: false,
     scope: "post",
   },
   onlyPostFirstPatternedInstance: {
@@ -426,7 +426,7 @@ function activateMachine() {
   setFeedrateMode();
 
   if (machineConfiguration.isHeadConfiguration() && compensateToolLength) {
-    _.forEach(getSection, function (section) {
+    _.forEach(_.allSections(), function (section) {
       if (section.isMultiAxis()) {
         machineConfiguration.getToolLength(section.getTool().getBodyLength());
         section.optimizeMachineAnglesByMachine(machineConfiguration, tcpIsSupported ? 0 : 1);
@@ -517,7 +517,7 @@ function onOpen() {
   if (getProperty("writeTools")) {
     var zRanges = {};
     if (is3D()) {
-      _.forEach(getSection, function (section) {
+      _.forEach(_.allSections(), function (section) {
         var zRange = section.getGlobalZRange();
         var tool = section.getTool();
         if (zRanges[tool.number]) {
@@ -528,8 +528,7 @@ function onOpen() {
       });
     }
 
-    var tools = getToolTable();
-    _.forEach(tools.getTool.bind(tools), function (tool) {
+    _.forEach(_.allTools(), function (tool) {
       var comment = "T";
       
       if (getProperty("useToolIdentifiers")) {
@@ -556,7 +555,7 @@ function onOpen() {
   }
 
   if (getNumberOfSections() > 0 && getSection(0).workOffset === 0) {
-    var nonZeroOffset = _.any(getSection, function (section) {
+    var nonZeroOffset = _.any(_.allSections(), function (section) {
       return section.workOffset > 0;
     });
     
@@ -914,7 +913,6 @@ function getWorkPlaneMachineABC(workPlane, _setWorkPlane, rotate) {
 
 var spState = {
   programs: [],
-  currentSubprogram: undefined,
   lastSubprogram: 0,
   knownPatterns: {},
   sectionSkipped: false,
@@ -925,23 +923,26 @@ function subprogramDefine() {
 
   spState.sectionSkipped = false;
 
-  if (currentSection.isPatterned()) {
-    var currentPattern = currentSection.getPatternId();
+  var nextSubprogram = spState.lastSubprogram + 1;
+
+  if (currentSection.isPatterned() && subprogramCanBeShared(currentSection)) {
+    var pattern = currentSection.getPatternId();
     // If we've seen this pattern, skip the section and exit early
-    if (spState.knownPatterns[currentPattern]) {
-      writeBlock(mFormat.format(98), "P" + oFormat8.format(spState.knownPatterns[currentPattern]));
+    if (spState.knownPatterns[pattern]) {
+      writeBlock(mFormat.format(98), "P" + oFormat4.format(spState.knownPatterns[pattern]));
       spState.sectionSkipped = true;
       skipRemainingSection();
       setCurrentPosition(getFramePosition(currentSection.getFinalPosition()));
       return;
     } else {
-      spState.knownPatterns[currentPattern] = spState.currentSubprogram;
+      spState.knownPatterns[pattern] = nextSubprogram;
     }
   }
 
-  spState.currentSubprogram = ++spState.lastSubprogram;
-  writeBlock(mFormat.format(98), "P" + oFormat8.format(spState.currentSubprogram));
-  subprogramStart(spState.currentSubprogram);
+  writeBlock(mFormat.format(98), "P" + oFormat4.format(nextSubprogram));
+  subprogramStart(nextSubprogram);
+
+  spState.lastSubprogram = nextSubprogram;
 }
 
 function subprogramStart(subprogramNo) {
@@ -949,7 +950,7 @@ function subprogramStart(subprogramNo) {
 
   var comment = hasParameter("operation-comment") ? getParameter("operation-comment") : "";
   writeln(
-    "O" + oFormat8.format(subprogramNo) +
+    "O" + oFormat4.format(subprogramNo) +
     conditional(comment, " " + formatComment(comment))
   );
   gPlaneModal.reset();
@@ -961,6 +962,54 @@ function subprogramEnd() {
   spState.programs.push(getRedirectionBuffer());
   forceAny();
   closeRedirection();
+}
+
+// Subprograms can be shared amongst pattern instances with identical movement, identified as those with identical initial & final positions and bounding boxes.
+function subprogramCanBeShared(section) {
+  var patternId = section.getPatternId();
+
+  if (!subprogramCanBeShared.cache.hasOwnProperty(patternId)) {
+    var positionAndBox = positionAndBoxFor(section);
+    var patternInstances = _.filter(_.allSections(), function (s) {
+      return s.isPatterned() && s.getPatternId() === patternId;
+    });
+
+    subprogramCanBeShared.cache[patternId] = _.every(patternInstances, function (inst) {
+      var instPositionAndBox = positionAndBoxFor(inst);
+      return (
+        areSpatialBoxesSame(positionAndBox[0], instPositionAndBox[0]) &&
+        areSpatialBoxesSame(positionAndBox[1], instPositionAndBox[1])
+      );
+    });
+  }
+
+  return subprogramCanBeShared.cache[patternId];
+}
+subprogramCanBeShared.cache = {};
+
+function positionAndBoxFor(section) {
+  var sectionPosition = [
+    getFramePosition(section.getInitialPosition()),
+    getFramePosition(section.getFinalPosition()),
+  ];
+  var sectionBox = [
+    getFramePosition(section.getBoundingBox()[0]),
+    getFramePosition(section.getBoundingBox()[1]),
+  ];
+
+  return [ sectionPosition, sectionBox ];
+}
+
+/** Returns true if the spatial vectors are significantly different. */
+function areSpatialVectorsDifferent(_vector1, _vector2) {
+  return (xyzFormat.getResultingValue(_vector1.x) != xyzFormat.getResultingValue(_vector2.x)) ||
+    (xyzFormat.getResultingValue(_vector1.y) != xyzFormat.getResultingValue(_vector2.y)) ||
+    (xyzFormat.getResultingValue(_vector1.z) != xyzFormat.getResultingValue(_vector2.z));
+}
+
+/** Returns true if the spatial boxes are same. */
+function areSpatialBoxesSame(_box1, _box2) {
+  return !areSpatialVectorsDifferent(_box1[0], _box2[0]) && !areSpatialVectorsDifferent(_box1[1], _box2[1]);
 }
 
 function printProbeResults() {
