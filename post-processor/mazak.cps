@@ -418,7 +418,7 @@ function activateMachine() {
   setFeedrateMode();
 
   if (machineConfiguration.isHeadConfiguration() && compensateToolLength) {
-    _.forEach(getSection, function (section) {
+    _.forEach(_.allSections(), function (section) {
       if (section.isMultiAxis()) {
         machineConfiguration.getToolLength(section.getTool().getBodyLength());
         section.optimizeMachineAnglesByMachine(machineConfiguration, tcpIsSupported ? 0 : 1);
@@ -509,7 +509,7 @@ function onOpen() {
   if (getProperty("writeTools")) {
     var zRanges = {};
     if (is3D()) {
-      _.forEach(getSection, function (section) {
+      _.forEach(_.allSections(), function (section) {
         var zRange = section.getGlobalZRange();
         var tool = section.getTool();
         if (zRanges[tool.number]) {
@@ -520,8 +520,7 @@ function onOpen() {
       });
     }
 
-    var tools = getToolTable();
-    _.forEach(tools.getTool.bind(tools), function (tool) {
+    _.forEach(_.allTools(), function (tool) {
       var comment = "T";
       
       if (getProperty("useToolIdentifiers")) {
@@ -548,7 +547,7 @@ function onOpen() {
   }
 
   if (getNumberOfSections() > 0 && getSection(0).workOffset === 0) {
-    var nonZeroOffset = _.any(getSection, function (section) {
+    var nonZeroOffset = _.any(_.allSections(), function (section) {
       return section.workOffset > 0;
     });
     
