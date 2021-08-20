@@ -359,20 +359,20 @@ function writeBlock() {
   if (!formatWords(arguments)) {
     return;
   }
-  if (getProperty("showSequenceNumbers")) {
+  if (getProperty(properties.showSequenceNumbers)) {
     writeWords2("N" + sequenceNumber, arguments);
-    sequenceNumber += getProperty("sequenceNumberIncrement");
+    sequenceNumber += getProperty(properties.sequenceNumberIncrement);
   } else {
     writeWords(arguments);
   }
 }
 
 function writeOptionalBlock() {
-  if (getProperty("showSequenceNumbers")) {
+  if (getProperty(properties.showSequenceNumbers)) {
     var words = formatWords(arguments);
     if (words) {
       writeWords("/", "N" + sequenceNumber, words);
-      sequenceNumber += getProperty("sequenceNumberIncrement");
+      sequenceNumber += getProperty(properties.sequenceNumberIncrement);
     }
   } else {
     writeWords2("/", arguments);
@@ -455,16 +455,16 @@ function onOpen() {
   
   activateMachine();
 
-  if (getProperty("useRadius")) {
+  if (getProperty(properties.useRadius)) {
     maximumCircularSweep = toRad(90); // avoid potential center calculation errors for CNC
   }
   gRotationModal.format(69); // Default to G69 Rotation Off
   
-  if (!getProperty("separateWordsWithSpace")) {
+  if (!getProperty(properties.separateWordsWithSpace)) {
     setWordSeparator("");
   }
 
-  sequenceNumber = getProperty("sequenceNumberStart");
+  sequenceNumber = getProperty(properties.sequenceNumberStart);
 
   validate(programName, "Program name has not been specified.");
 
@@ -490,7 +490,7 @@ function onOpen() {
   var model = machineConfiguration.getModel();
   var description = machineConfiguration.getDescription();
 
-  if (getProperty("writeMachine") && (vendor || model || description)) {
+  if (getProperty(properties.writeMachine) && (vendor || model || description)) {
     writeComment(localize("Machine"));
     if (vendor) {
       writeComment("--" + localize("Vendor") + ": " + vendor);
@@ -512,7 +512,7 @@ function onOpen() {
   }
 
   // dump tool information
-  if (getProperty("writeTools")) {
+  if (getProperty(properties.writeTools)) {
     var zRanges = {};
     if (is3D()) {
       _.forEach(_.allSections(), function (section) {
@@ -529,7 +529,7 @@ function onOpen() {
     _.forEach(_.allTools(), function (tool) {
       var comment = "T";
       
-      if (getProperty("useToolIdentifiers")) {
+      if (getProperty(properties.useToolIdentifiers)) {
         comment += " ";
       }
       
@@ -919,7 +919,7 @@ var spState = {
 };
 
 function subprogramDefine() {
-  if (!getProperty("useSubprograms")) return;
+  if (!getProperty(properties.useSubprograms)) return;
 
   spState.skippingPatternInstance = false;
 
@@ -1030,7 +1030,7 @@ function writeSectionSummary() {
   var sectionNumber = parseInt(currentSection.getId(), 10) + 1;
   var toolNumber = formatToolNumber(currentSection.getTool());
 
-  if (getProperty("useToolIdentifiers")) {
+  if (getProperty(properties.useToolIdentifiers)) {
     toolNumber = " " + toolNumber;
   }
 
@@ -1049,7 +1049,7 @@ var patternState = {
 };
 
 function registerSection() {
-  if (currentSection.isPatterned() && getProperty("onlyPostFirstPatternedInstance")) {
+  if (currentSection.isPatterned() && getProperty(properties.onlyPostFirstPatternedInstance)) {
     if (patternState.knownPatterns[currentSection.getPatternId()]) {
       patternState.skippedSections[currentSection.getId()] = true;
     }
@@ -1190,7 +1190,7 @@ function onSection() {
 
   writeSectionSummary();
   
-  if (getProperty("showNotes") && hasParameter("notes")) {
+  if (getProperty(properties.showNotes) && hasParameter("notes")) {
     var notes = getParameter("notes");
     if (notes) {
       var lines = String(notes).split("\n");
@@ -1208,7 +1208,7 @@ function onSection() {
   if (insertToolCall) {
     forceWorkPlane();
   
-    if (!isFirstSection() && getProperty("optionalStop")) {
+    if (!isFirstSection() && getProperty(properties.optionalStop)) {
       onCommand(COMMAND_OPTIONAL_STOP);
     }
 
@@ -1230,7 +1230,7 @@ function onSection() {
       conditional(nextTool, "T" + formatToolNumber(nextTool))
     );
 
-    if (getProperty("showToolComments") && tool.comment) {
+    if (getProperty(properties.showToolComments) && tool.comment) {
       writeComment(tool.comment);
     }
   }
@@ -1358,7 +1358,7 @@ function onSection() {
 
   validate(lengthCompensationActive, "Length compensation should not be active.");
 
-  if (getProperty("useParametricFeed") &&
+  if (getProperty(properties.useParametricFeed) &&
       hasParameter("operation-strategy") &&
       (getParameter("operation-strategy") != "drill") && // legacy
       !(currentSection.hasAnyCycle && currentSection.hasAnyCycle())) {
@@ -1386,7 +1386,7 @@ function onSection() {
     inspectionProcessSectionStart();
   }
 
-  if (getProperty("enableMachiningModes")) {
+  if (getProperty(properties.enableMachiningModes)) {
     setMachiningMode();
   }
 
@@ -1482,7 +1482,7 @@ function approach(value) {
 }
 
 function setProbeAngleMethod() {
-  probeVariables.probeAngleMethod = (machineConfiguration.getNumberOfAxes() < 5 || is3D()) ? (getProperty("useG54x4") ? "G54.4" : "G68") : "UNSUPPORTED";
+  probeVariables.probeAngleMethod = (machineConfiguration.getNumberOfAxes() < 5 || is3D()) ? (getProperty(properties.useG54x4) ? "G54.4" : "G68") : "UNSUPPORTED";
   var axes = [machineConfiguration.getAxisU(), machineConfiguration.getAxisV(), machineConfiguration.getAxisW()];
   for (var i = 0; i < axes.length; ++i) {
     if (axes[i].isEnabled() && isSameDirection((axes[i].getAxis()).getAbsolute(), new Vector(0, 0, 1)) && axes[i].isTable()) {
@@ -1648,7 +1648,7 @@ function onCyclePoint(x, y, z) {
       }
       break;
     case "tapping":
-      if (getProperty("usePitchForTapping")) {
+      if (getProperty(properties.usePitchForTapping)) {
         writeBlock(
           gRetractModal.format(98), gAbsIncModal.format(90), gCycleModal.format((tool.type == TOOL_TAP_LEFT_HAND) ? 74 : 84),
           getCommonCycle(x, y, z, cycle.retract),
@@ -1665,7 +1665,7 @@ function onCyclePoint(x, y, z) {
       }
       break;
     case "left-tapping":
-      if (getProperty("usePitchForTapping")) {
+      if (getProperty(properties.usePitchForTapping)) {
         writeBlock(
           gRetractModal.format(98), gAbsIncModal.format(90), gCycleModal.format(74),
           getCommonCycle(x, y, z, cycle.retract),
@@ -1682,7 +1682,7 @@ function onCyclePoint(x, y, z) {
       }
       break;
     case "right-tapping":
-      if (getProperty("usePitchForTapping")) {
+      if (getProperty(properties.usePitchForTapping)) {
         writeBlock(
           gRetractModal.format(98), gAbsIncModal.format(90), gCycleModal.format(84),
           getCommonCycle(x, y, z, cycle.retract),
@@ -2275,7 +2275,7 @@ function onCircular(clockwise, cx, cy, cz, x, y, z, feed) {
   var start = getCurrentPosition();
 
   if (isFullCircle()) {
-    if (getProperty("useRadius") || isHelical()) { // radius mode does not support full arcs
+    if (getProperty(properties.useRadius) || isHelical()) { // radius mode does not support full arcs
       linearize(tolerance);
       return;
     }
@@ -2292,7 +2292,7 @@ function onCircular(clockwise, cx, cy, cz, x, y, z, feed) {
     default:
       linearize(tolerance);
     }
-  } else if (!getProperty("useRadius")) {
+  } else if (!getProperty(properties.useRadius)) {
     switch (getCircularPlane()) {
     case PLANE_XY:
       writeBlock(gPlaneModal.format(17), gMotionModal.format(clockwise ? 2 : 3), xOutput.format(x), yOutput.format(y), zOutput.format(z), iOutput.format(cx - start.x, 0), jOutput.format(cy - start.y, 0), getFeed(feed));
@@ -2432,7 +2432,7 @@ function onSectionEnd() {
     return;
   }
   
-  if (getProperty("enableMachiningModes")) {
+  if (getProperty(properties.enableMachiningModes)) {
     usingHighSpeedMode() && disableHighSpeedMode();
   }
 
@@ -2474,7 +2474,7 @@ function onSectionEnd() {
 function writeRetract() {
   var words = []; // store all retracted axes in an array
   var retractAxes = new Array(false, false, false);
-  var method = getProperty("safePositionMethod");
+  var method = getProperty(properties.safePositionMethod);
   if (method == "clearanceHeight") {
     if (!is3D()) {
       error(localize("Retract option 'Clearance Height' is not supported for multi-axis machining."));
@@ -2555,7 +2555,7 @@ function writeRetract() {
 var isDPRNTopen = false;
 function inspectionCreateResultsFileHeader() {
   if (isDPRNTopen) {
-    if (!getProperty("singleResultsFile")) {
+    if (!getProperty(properties.singleResultsFile)) {
       writeln("DPRNT[END]");
       writeBlock("PCLOS");
       isDPRNTopen = false;
@@ -2571,7 +2571,7 @@ function inspectionCreateResultsFileHeader() {
     writeBlock("POPEN");
     // check for existence of none alphanumeric characters but not spaces
     var resFile;
-    if (getProperty("singleResultsFile")) {
+    if (getProperty(properties.singleResultsFile)) {
       resFile = getParameter("job-description") + "-RESULTS";
     } else {
       resFile = getParameter("operation-comment") + "-RESULTS";
@@ -2747,7 +2747,7 @@ function formatToolIdentifier(tool) {
 }
 
 function formatToolNumber(tool) {
-  if (getProperty("useToolIdentifiers")) {
+  if (getProperty(properties.useToolIdentifiers)) {
     return formatToolIdentifier(tool);
   } else {
     return toolFormat.format(tool.number);
@@ -2755,7 +2755,7 @@ function formatToolNumber(tool) {
 }
 
 function formatToolH(tool) {
-  if (getProperty("useToolIdentifiers")) {
+  if (getProperty(properties.useToolIdentifiers)) {
     return "H" + formatToolIdentifier(tool);
   } else {
     return hFormat.format(tool.lengthOffset);
@@ -2763,7 +2763,7 @@ function formatToolH(tool) {
 }
 
 function formatToolD(tool) {
-  if (getProperty("useToolIdentifiers")) {
+  if (getProperty(properties.useToolIdentifiers)) {
     return "D" + formatToolIdentifier(tool);
   } else {
     return dFormat.format(tool.diameterOffset);
