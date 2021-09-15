@@ -527,37 +527,20 @@ function onOpen() {
   if (getProperty(properties.useRadius)) {
     maximumCircularSweep = toRad(90); // avoid potential center calculation errors for CNC
   }
+
   gRotationModal.format(69); // Default to G69 Rotation Off
+
+  sequenceNumber = getProperty(properties.sequenceNumberStart);
 
   if (!getProperty(properties.separateWordsWithSpace)) {
     setWordSeparator("");
   }
 
-  sequenceNumber = getProperty(properties.sequenceNumberStart);
-
   validate(programName, "Program name has not been specified.");
 
-  try {
-    var programId = getAsInt(programName);
-    validate(programId >= 1 && programId <= 99999999, "Program number is out of range.");
-
-    var oFormat = programId <= 9999 ? oFormat4 : oFormat8;
-
-    writeln("O" + oFormat.format(programId));
-  } catch (e) {
-    writeComment(programName);
-  }
-
-  if (programComment) {
-    writeComment(programComment);
-  }
-
+  writeComment(programName);
+  programComment && writeComment(programComment);
   writeln("");
-
-  // dump machine configuration
-  var vendor = machineConfiguration.getVendor();
-  var model = machineConfiguration.getModel();
-  var description = machineConfiguration.getDescription();
 
   if (getProperty(properties.writeMachine)) {
     writeMachineSummary();
@@ -1054,17 +1037,20 @@ function onParameter(name, value) {
 function writeSectionSummary() {
   var summary = [];
 
-  summary.push("SECTION " + parseInt(currentSection.getId(), 10));
+  summary.push(formatComment(
+    "SECTION " + (parseInt(currentSection.getId(), 10) + 1)
+  ));
 
   if (hasParameter("operation-comment")) {
-    summary.push(getParameter("operation-comment"));
+    summary.push(formatComment(getParameter("operation-comment")));
   }
 
-  summary.push(formatToolForSummary(currentSection.getTool()));
+  summary.push(formatComment(
+    formatToolForSummary(currentSection.getTool()),
+    { noUpperCase: true }
+  ));
 
-  _.forEach(summary, function (s) {
-    writeln(formatComment(s, { noUpperCase: true }));
-  });
+  _.forEach(summary, function (s) { writeln(s); });
 }
 
 var patternState = {
