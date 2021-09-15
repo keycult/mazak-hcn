@@ -257,7 +257,7 @@ properties = {
   },
 };
 
-var coolantOffCodes = [9]; 
+var coolantOffCodes = [9];
 var coolants = [
   { id: COOLANT_FLOOD,              codes: [8] },
   { id: COOLANT_MIST,               codes: [7] },
@@ -265,7 +265,7 @@ var coolants = [
   { id: COOLANT_FLOOD_THROUGH_TOOL, codes: [8, 131] },
   { id: COOLANT_AIR,                codes: [52] },
   { id: COOLANT_AIR_THROUGH_TOOL,   codes: [132] },
-  
+
   // Currently unsupported
   // { id: COOLANT_SUCTION },
   // { id: COOLANT_FLOOD_MIST },
@@ -410,24 +410,24 @@ function formatToolForSummary(tool, zRanges) {
   } else {
     comment += "T";
   }
-  
+
   comment += formatToolNumber(tool);
   comment += " D=" + xyzFormat.format(tool.diameter);
   comment += " CR=" + xyzFormat.format(tool.cornerRadius);
-  
+
   if (tool.taperAngle > 0 && tool.taperAngle < Math.PI) {
     comment += " TAPER=" + taperFormat.format(tool.taperAngle) + "DEG";
   }
-  
+
   if (zRanges) {
     var zRange = zRanges[tool.number];
     if (zRange) {
       comment += " ZMIN=" + xyzFormat.format(zRange.getMinimum());
     }
   }
-  
+
   comment += " - " + getToolTypeName(tool.type);
-  
+
   return comment;
 }
 
@@ -484,7 +484,7 @@ function activateMachine() {
   if (machineConfiguration.isHeadConfiguration()) {
     machineConfiguration.setVirtualTooltip(virtualTooltip);
   }
-  
+
   setFeedrateMode();
 
   if (machineConfiguration.isHeadConfiguration() && compensateToolLength) {
@@ -517,18 +517,18 @@ function setFeedrateMode(reset) {
 
 function onOpen() {
   receivedMachineConfiguration =
-    typeof machineConfiguration.isReceived === "function" ?           
+    typeof machineConfiguration.isReceived === "function" ?
     machineConfiguration.isReceived() :
     (machineConfiguration.getDescription() !== "" ||
       machineConfiguration.isMultiAxisConfiguration());
-  
+
   activateMachine();
 
   if (getProperty(properties.useRadius)) {
     maximumCircularSweep = toRad(90); // avoid potential center calculation errors for CNC
   }
   gRotationModal.format(69); // Default to G69 Rotation Off
-  
+
   if (!getProperty(properties.separateWordsWithSpace)) {
     setWordSeparator("");
   }
@@ -580,7 +580,7 @@ function onOpen() {
     var nonZeroOffset = _.any(_.allSections(), function (section) {
       return section.workOffset > 0;
     });
-    
+
     if (nonZeroOffset) {
       error("Using multiple work offsets is not possible if the initial work offset is 0.");
     }
@@ -684,7 +684,7 @@ function getFeed(f) {
 function initializeActiveFeeds() {
   activeMovements = new Array();
   var movements = currentSection.getMovements();
-  
+
   var id = 0;
   var activeFeeds = new Array();
   if (hasParameter("operation:tool_feedCutting")) {
@@ -703,7 +703,7 @@ function initializeActiveFeeds() {
     }
     ++id;
   }
-  
+
   if (hasParameter("operation:finishFeedrate")) {
     if (movements & (1 << MOVEMENT_FINISH_CUTTING)) {
       var feedContext = new FeedContext(id, localize("Finish"), getParameter("operation:finishFeedrate"));
@@ -719,7 +719,7 @@ function initializeActiveFeeds() {
     }
     ++id;
   }
-  
+
   if (hasParameter("operation:tool_feedEntry")) {
     if (movements & (1 << MOVEMENT_LEAD_IN)) {
       var feedContext = new FeedContext(id, localize("Entry"), getParameter("operation:tool_feedEntry"));
@@ -755,7 +755,7 @@ function initializeActiveFeeds() {
     }
     ++id;
   }
-  
+
   if (hasParameter("operation:reducedFeedrate")) {
     if (movements & (1 << MOVEMENT_REDUCED)) {
       var feedContext = new FeedContext(id, localize("Reduced"), getParameter("operation:reducedFeedrate"));
@@ -799,7 +799,7 @@ function initializeActiveFeeds() {
     }
     ++id;
   }
-  
+
   for (var i = 0; i < activeFeeds.length; ++i) {
     var feedContext = activeFeeds[i];
     writeBlock("#" + (firstFeedParameter + feedContext.id) + "=" + feedFormat.format(feedContext.feed), formatComment(feedContext.description));
@@ -873,7 +873,7 @@ function setWorkPlane(abc) {
     );
     setCurrentABC(abc); // required for machine simulation
   }
-  
+
   onCommand(COMMAND_LOCK_MULTI_AXIS);
 
   currentWorkPlaneABC = abc;
@@ -895,7 +895,7 @@ function getWorkPlaneMachineABC(workPlane, _setWorkPlane, rotate) {
   } else {
     abc = machineConfiguration.getPreferredABC(abc);
   }
-  
+
   try {
     abc = machineConfiguration.remapABC(abc);
     if (_setWorkPlane) {
@@ -909,12 +909,12 @@ function getWorkPlaneMachineABC(workPlane, _setWorkPlane, rotate) {
       + conditional(machineConfiguration.isMachineCoordinate(2), " C" + abcFormat.format(abc.z))
     );
   }
-  
+
   var direction = machineConfiguration.getDirection(abc);
   if (!isSameDirection(direction, W.forward)) {
     error(localize("Orientation not supported."));
   }
-  
+
   if (!machineConfiguration.isABCSupported(abc)) {
     error(
       localize("Work plane is not supported") + ":"
@@ -934,7 +934,7 @@ function getWorkPlaneMachineABC(workPlane, _setWorkPlane, rotate) {
       setRotation(R);
     }
   }
-  
+
   return abc;
 }
 
@@ -1126,7 +1126,7 @@ function getMachiningMode() {
 
 function usingHighSpeedMode() {
   var machiningMode = getMachiningMode();
-  
+
   return (
     !isProbeOperation() &&
     machiningMode !== "tapping" &&
@@ -1148,7 +1148,7 @@ function setMachiningMode() {
   if (mode === undefined) {
     return;
   }
-  
+
   var modeCode = MACHINING_MODES[mode];
   validate(modeCode, "Post processor does not support machining mode: " + String(mode));
 
@@ -1171,7 +1171,7 @@ function setTSCPressure() {
 function onSection() {
   registerSection();
   if (skippingSection()) return skipRemainingSection();
-  
+
   retracted = false;
 
   var insertToolCall = (
@@ -1184,7 +1184,7 @@ function onSection() {
     isFirstSection() ||
     getPreviousSection().workOffset !== currentSection.workOffset
   );
-  
+
   var newWorkPlane = isFirstSection() ||
     !isSameDirection(getPreviousSection().getGlobalFinalToolAxis(), currentSection.getGlobalInitialToolAxis()) ||
     (currentSection.isOptimizedForMachine() && getPreviousSection().isOptimizedForMachine() &&
@@ -1202,9 +1202,9 @@ function onSection() {
         disableCoolant();
       }
     }
-    
+
     writeRetract(Z);
-    
+
     if (insertToolCall && !isFirstSection()) {
       disableLengthCompensation();
     }
@@ -1213,7 +1213,7 @@ function onSection() {
   writeln("");
 
   writeSectionSummary();
-  
+
   if (getProperty(properties.showNotes) && hasParameter("notes")) {
     var notes = getParameter("notes");
     if (notes) {
@@ -1228,10 +1228,10 @@ function onSection() {
       }
     }
   }
-  
+
   if (insertToolCall) {
     forceWorkPlane();
-  
+
     if (!isFirstSection() && getProperty(properties.optionalStop)) {
       onCommand(COMMAND_OPTIONAL_STOP);
     }
@@ -1243,7 +1243,7 @@ function onSection() {
     disableLengthCompensation(false);
 
     var nextTool;
-      
+
     if (getProperty(properties.preloadTool)) {
       nextTool = getNextTool(tool.number) || getSection(0).getTool();
     }
@@ -1258,43 +1258,43 @@ function onSection() {
       writeComment(tool.comment);
     }
   }
-  
+
   // Force work offset when changing tool
   if (insertToolCall) {
     currentWorkOffset = undefined;
   }
-  
+
   var workOffset = currentSection.workOffset;
   validate(workOffset >= 0, "Negative work offset not supported: " + workOffset);
-  
+
   if (workOffset === 0) {
     warningOnce("Work offset has not been specified. Using G54 as WCS.", WARNING_WORK_OFFSET);
     workOffset = 1;
   }
-  
+
   if (workOffset !== currentWorkOffset) {
     if (cancelTiltFirst) {
       cancelWorkPlane();
     }
     forceWorkPlane();
-    
+
     if (workOffset > 6) {
       var code = workOffset - 6;
       writeBlock(gFormat.format(54.1), "P" + code);
     } else {
       writeBlock(gFormat.format(53 + workOffset));
     }
-    
-    currentWorkOffset = workOffset;  
+
+    currentWorkOffset = workOffset;
   }
 
   forceXYZ();
   defineWorkPlane(currentSection, true);
 
   setProbeAngle(); // output probe angle rotations if required
-  
+
   var auxCodes = [];
-  
+
   if (tool.type !== TOOL_PROBE &&
       (insertToolCall ||
       forceSpindleSpeed ||
@@ -1302,13 +1302,13 @@ function onSection() {
       rpmFormat.areDifferent(spindleSpeed, sOutput.getCurrent()) ||
       tool.clockwise !== getPreviousSection().getTool().clockwise)) {
     forceSpindleSpeed = false;
-    
+
     validate(spindleSpeed >= 1, "Spindle speed out of range: " + spindleSpeed);
-    
+
     if (spindleSpeed > 99999) {
       warning("Spindle speed exceeds maximum value.");
-    } 
-    
+    }
+
     auxCodes.push([
       sOutput.format(spindleSpeed),
       mFormat.format(tool.clockwise ? 3 : 4)
@@ -1326,7 +1326,7 @@ function onSection() {
   } else {
     _.forEach(auxCodes, function (code) { writeBlock(code) });
   }
-  
+
   forceAny();
   gMotionModal.reset();
 
@@ -1403,7 +1403,7 @@ function onSection() {
       "You cannot probe while G68 Rotation is in effect.");
     validate(probeVariables.probeAngleMethod !== "G54.4",
       "You cannot probe while workpiece setting error compensation G54.4 is enabled.");
-    
+
     writeBlock(gFormat.format(65), "P" + 9832); // probe on
     inspectionCreateResultsFileHeader();
   } else if (isInspectionOperation() && (typeof inspectionProcessSectionStart == "function")) {
@@ -1618,7 +1618,7 @@ function onCyclePoint(x, y, z) {
     if (!isProbeOperation()) {
       repositionToCycleClearance(cycle, x, y, z);
     }
-    
+
     // return to initial Z which is clearance plane and set absolute mode
 
     var F = cycle.feedrate;
@@ -2290,7 +2290,7 @@ function onCircular(clockwise, cx, cy, cz, x, y, z, feed) {
       return;
     }
   }
-  
+
   if (pendingRadiusCompensation >= 0) {
     error(localize("Radius compensation cannot be activated/deactivated for a circular move."));
     return;
@@ -2364,10 +2364,10 @@ function enableCoolant(coolantMode, suppressWrite) {
   if (coolantMode !== coolantState.currentMode && !isFirstSection()) {
     writeBlock(formatCoolantCodes(coolantOffCodes).join(getWordSeparator()));
   }
-  
+
   var mCodes = coolantCodesToEnable(coolantMode);
-  !suppressWrite && writeBlock(mCodes.join(getWordSeparator())); 
-  
+  !suppressWrite && writeBlock(mCodes.join(getWordSeparator()));
+
   coolantState.currentMode = coolantMode;
   return mCodes;
 }
@@ -2376,10 +2376,10 @@ function disableCoolant(suppressWrite) {
   if (coolantState.currentMode === COOLANT_OFF) {
     return [];
   }
-  
+
   var mCodes = formatCoolantCodes(coolantOffCodes);
   !suppressWrite && writeBlock(mCodes.join(getWordSeparator()));
-  
+
   coolantState.currentMode = COOLANT_OFF;
   return mCodes;
 }
@@ -2389,10 +2389,10 @@ function coolantCodesToEnable(coolantMode) {
   if (coolantMode === COOLANT_OFF || coolantMode === coolantState.currentMode) {
     return [];
   }
-  
+
   var coolant = _.find(coolants, function (c) { return c.id === coolantMode });
   validate(!!coolant, "Post processor does not support coolant mode: " + coolantMode);
-  
+
   return formatCoolantCodes(coolant.codes);
 }
 
@@ -2441,7 +2441,7 @@ function onCommand(command) {
   case COMMAND_PROBE_OFF:
     return;
   }
-  
+
   var stringId = getCommandStringId(command);
   var mcode = mapCommand[stringId];
   if (mcode != undefined) {
@@ -2455,7 +2455,7 @@ function onSectionEnd() {
   if (skippingSection()) {
     return;
   }
-  
+
   if (getProperty(properties.enableMachiningModes)) {
     usingHighSpeedMode() && disableHighSpeedMode();
   }
@@ -2490,7 +2490,7 @@ function onSectionEnd() {
       setProbeAngle(); // output probe angle rotations if required
     }
   }
-  
+
   forceAny();
 }
 
@@ -2523,7 +2523,7 @@ function writeRetract() {
   if (gRotationModal.getCurrent() == 68) { // cancel G68 before retracting
     cancelWorkPlane(true);
   }
-  
+
   // define home positions
   var _xHome;
   var _yHome;
@@ -2745,7 +2745,7 @@ function onClose() {
   if (probeVariables.probeAngleMethod == "G54.4") {
     writeBlock(gFormat.format(54.4), "P0");
   }
-  
+
   onImpliedCommand(COMMAND_END);
   onImpliedCommand(COMMAND_STOP_SPINDLE);
   writeBlock(mFormat.format(30)); // stop program, spindle stop, coolant off
