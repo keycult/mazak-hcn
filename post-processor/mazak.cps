@@ -402,6 +402,54 @@ function writeComment(text) {
   writeln(formatComment(text));
 }
 
+function formatToolForSummary(tool, zRanges) {
+  var comment = "";
+
+  if (getProperty(properties.useToolIdentifiers)) {
+    comment += "T-ID: ";
+  } else {
+    comment += "T";
+  }
+  
+  comment += formatToolNumber(tool);
+  comment += " D=" + xyzFormat.format(tool.diameter);
+  comment += " CR=" + xyzFormat.format(tool.cornerRadius);
+  
+  if (tool.taperAngle > 0 && tool.taperAngle < Math.PI) {
+    comment += " TAPER=" + taperFormat.format(tool.taperAngle) + "DEG";
+  }
+  
+  if (zRanges) {
+    var zRange = zRanges[tool.number];
+    if (zRange) {
+      comment += " ZMIN=" + xyzFormat.format(zRange.getMinimum());
+    }
+  }
+  
+  comment += " - " + getToolTypeName(tool.type);
+  
+  return comment;
+}
+
+function writeToolSummary() {
+  var zRanges = {};
+  if (is3D()) {
+    _.forEach(_.allSections(), function (section) {
+      var zRange = section.getGlobalZRange();
+      var tool = section.getTool();
+      if (zRanges[tool.number]) {
+        zRanges[tool.number].expandToRange(zRange);
+      } else {
+        zRanges[tool.number] = zRange;
+      }
+    });
+  }
+
+  _.forEach(_.allTools(), function (tool) {
+    writeComment(formatToolForSummary(tool, zRanges));
+  });
+}
+
 function activateMachine() {
   _.forEach([aOutput, bOutput, cOutput], function (output, i) {
     machineConfiguration.isMachineCoordinate(i) || output.disable();
@@ -521,44 +569,7 @@ function onOpen() {
 
   // dump tool information
   if (getProperty(properties.writeTools)) {
-    var zRanges = {};
-    if (is3D()) {
-      _.forEach(_.allSections(), function (section) {
-        var zRange = section.getGlobalZRange();
-        var tool = section.getTool();
-        if (zRanges[tool.number]) {
-          zRanges[tool.number].expandToRange(zRange);
-        } else {
-          zRanges[tool.number] = zRange;
-        }
-      });
-    }
-
-    _.forEach(_.allTools(), function (tool) {
-      var comment = "T";
-      
-      if (getProperty(properties.useToolIdentifiers)) {
-        comment += " ";
-      }
-      
-      comment += formatToolNumber(tool);
-      comment += " D=" + xyzFormat.format(tool.diameter);
-      comment += " CR=" + xyzFormat.format(tool.cornerRadius);
-      
-      if (tool.taperAngle > 0 && tool.taperAngle < Math.PI) {
-        comment += " TAPER=" + taperFormat.format(tool.taperAngle) + "DEG";
-      }
-      
-      var zRange = zRanges[tool.number];
-      if (zRange) {
-        comment += " ZMIN=" + xyzFormat.format(zRange.getMinimum());
-      }
-      
-      comment += " - " + getToolTypeName(tool.type);
-      
-      writeComment(comment);
-    });
-
+    writeToolSummary();
     writeln("");
   }
 
@@ -1038,22 +1049,19 @@ function onParameter(name, value) {
 }
 
 function writeSectionSummary() {
-  var comment = hasParameter("operation-comment") && getParameter("operation-comment");
+  var summary = [];
 
-  var sectionNumber = parseInt(currentSection.getId(), 10) + 1;
-  var toolNumber = formatToolNumber(currentSection.getTool());
+  summary.push("SECTION " + parseInt(currentSection.getId(), 10));
 
-  if (getProperty(properties.useToolIdentifiers)) {
-    toolNumber = " " + toolNumber;
+  if (hasParameter("operation-comment")) {
+    summary.push(getParameter("operation-comment"));
   }
 
-  var summary = formatComment(
-    "SECTION " + sectionNumber + " - T" + toolNumber,
-    { noUpperCase: true }
-  );
-  writeln(summary);
+  summary.push(formatToolForSummary(currentSection.getTool()));
 
-  comment && writeComment(comment);
+  _.forEach(summary, function (s) {
+    writeln(formatComment(s, { noUpperCase: true }));
+  });
 }
 
 var patternState = {
@@ -2752,7 +2760,10 @@ function setProperty(property, value) {
 function formatToolIdentifier(tool) {
   var identifier = tool.description;
 
-  validate(!!identifier, "Tool description must be present as the tool identifier: " + tool.number);
+  if (!identifier) {
+    return tool.number;
+  }
+
   validate(identifier.length <= 32, "Tool description must be less than 32 characters when tool identifiers are used: " + tool.description);
   validate(identifier === filterText(identifier, permittedToolIdentifierChars), "Tool description can only contain '" + permittedToolIdentifierChars + "': '" + identifier + "'");
 
@@ -2768,17 +2779,9 @@ function formatToolNumber(tool) {
 }
 
 function formatToolH(tool) {
-  if (getProperty(properties.useToolIdentifiers)) {
-    return "H" + formatToolIdentifier(tool);
-  } else {
-    return hFormat.format(tool.lengthOffset);
-  }
+  return hFormat.format(tool.lengthOffset);
 }
 
 function formatToolD(tool) {
-  if (getProperty(properties.useToolIdentifiers)) {
-    return "D" + formatToolIdentifier(tool);
-  } else {
-    return dFormat.format(tool.diameterOffset);
-  }
+  return dFormat.format(tool.diameterOffset);
 }
