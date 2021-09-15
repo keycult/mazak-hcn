@@ -431,6 +431,19 @@ function formatToolForSummary(tool, zRanges) {
   return comment;
 }
 
+function writeMachineSummary() {
+  var vendor = machineConfiguration.getVendor();
+  var model = machineConfiguration.getModel();
+  var description = machineConfiguration.getDescription();
+
+  if (vendor || model || description) {
+    writeComment("MACHINE");
+    vendor && writeComment("--VENDOR: " + vendor);
+    model && writeComment("--MODEL: " + model);
+    description && writeComment("--DESCRIPTION: " + description);
+  }
+}
+
 function writeToolSummary() {
   var zRanges = {};
   if (is3D()) {
@@ -546,18 +559,8 @@ function onOpen() {
   var model = machineConfiguration.getModel();
   var description = machineConfiguration.getDescription();
 
-  if (getProperty(properties.writeMachine) && (vendor || model || description)) {
-    writeComment(localize("Machine"));
-    if (vendor) {
-      writeComment("--" + localize("Vendor") + ": " + vendor);
-    }
-    if (model) {
-      writeComment("--" + localize("Model") + ": " + model);
-    }
-    if (description) {
-      writeComment("--" + localize("Description") + ": "  + description);
-    }
-
+  if (getProperty(properties.writeMachine)) {
+    writeMachineSummary();
     writeln("");
   }
 
