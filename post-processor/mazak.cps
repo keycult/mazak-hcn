@@ -37,12 +37,20 @@ allowedCircularPlanes = undefined; // allow any circular motion
 probeMultipleFeatures = true;
 
 groupDefinitions = {
-  postControl:   { title: "Post Processing", order: 0 },
-  documentation: { title: "Documentation",   order: 1 },
-  formatting:    { title: "Formatting",      order: 2 },
+  program:       { title: "Program",         order: 0 },
+  postControl:   { title: "Post Processing", order: 1 },
+  documentation: { title: "Documentation",   order: 2 },
+  formatting:    { title: "Formatting",      order: 3 },
 };
 
 properties = {
+  ncPassThrough: {
+    title: "Program start NC pass through",
+    group: "program",
+    type: "string",
+    value: "M98 <keycult_set_schunk_offsets>",
+    scope: "post",
+  },
   writeMachine: {
     title: "Write machine",
     description: "Output the machine settings in the header of the code.",
@@ -562,6 +570,11 @@ function onOpen() {
     if (nonZeroOffset) {
       error("Using multiple work offsets is not possible if the initial work offset is 0.");
     }
+  }
+
+  if (getProperty(properties.ncPassThrough)) {
+    writeBlock(getProperty(properties.ncPassThrough));
+    writeln("");
   }
 
   writeBlock(
