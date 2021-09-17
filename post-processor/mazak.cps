@@ -845,7 +845,6 @@ function setWorkPlane(abc) {
       if (!cancelTiltFirst) {
         cancelWorkPlane();
       }
-      writeBlock(gFormat.format(53.1)); // turn machine
     }
   } else {
     writeBlock(
