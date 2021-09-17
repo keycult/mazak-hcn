@@ -1214,6 +1214,35 @@ function onSection() {
     }
   }
 
+  // Force work offset when changing tool
+  if (insertToolCall) {
+    currentWorkOffset = undefined;
+  }
+
+  var workOffset = currentSection.workOffset;
+  validate(workOffset >= 0, "Negative work offset not supported: " + workOffset);
+
+  if (workOffset === 0) {
+    warningOnce("Work offset has not been specified. Using G54 as WCS.", WARNING_WORK_OFFSET);
+    workOffset = 1;
+  }
+
+  if (workOffset !== currentWorkOffset) {
+    if (cancelTiltFirst) {
+      cancelWorkPlane();
+    }
+    forceWorkPlane();
+
+    if (workOffset > 6) {
+      var code = workOffset - 6;
+      writeBlock(gFormat.format(54.1), "P" + code);
+    } else {
+      writeBlock(gFormat.format(53 + workOffset));
+    }
+
+    currentWorkOffset = workOffset;
+  }
+
   if (insertToolCall) {
     forceWorkPlane();
 
@@ -1242,35 +1271,6 @@ function onSection() {
     if (getProperty(properties.showToolComments) && tool.comment) {
       writeComment(tool.comment);
     }
-  }
-
-  // Force work offset when changing tool
-  if (insertToolCall) {
-    currentWorkOffset = undefined;
-  }
-
-  var workOffset = currentSection.workOffset;
-  validate(workOffset >= 0, "Negative work offset not supported: " + workOffset);
-
-  if (workOffset === 0) {
-    warningOnce("Work offset has not been specified. Using G54 as WCS.", WARNING_WORK_OFFSET);
-    workOffset = 1;
-  }
-
-  if (workOffset !== currentWorkOffset) {
-    if (cancelTiltFirst) {
-      cancelWorkPlane();
-    }
-    forceWorkPlane();
-
-    if (workOffset > 6) {
-      var code = workOffset - 6;
-      writeBlock(gFormat.format(54.1), "P" + code);
-    } else {
-      writeBlock(gFormat.format(53 + workOffset));
-    }
-
-    currentWorkOffset = workOffset;
   }
 
   forceXYZ();
