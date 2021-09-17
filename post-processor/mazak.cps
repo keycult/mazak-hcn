@@ -1179,7 +1179,7 @@ function onSection() {
 
   if (insertToolCall || newWorkOffset || newWorkPlane) {
     if (insertToolCall && !isFirstSection()) {
-      if (getProperty(properties.useG117)) {
+      if (useG117()) {
         var codes = [gFormat.format(117), mFormat.format(5)].concat(disableCoolant(true));
         _.apply(writeBlock, codes);
       } else {
@@ -1306,7 +1306,7 @@ function onSection() {
 
   auxCodes = auxCodes.concat(enableCoolant(tool.coolant, true));
 
-  if (getProperty(properties.useG117) && auxCodes.length > 0) {
+  if (useG117() && auxCodes.length > 0) {
     _.apply(writeBlock, [gFormat.format(117)].concat(auxCodes));
   } else {
     _.forEach(auxCodes, function (code) { writeBlock(code) });
@@ -2772,4 +2772,8 @@ function formatToolH(tool) {
 
 function formatToolD(tool) {
   return dFormat.format(tool.diameterOffset);
+}
+
+function useG117() {
+  return getProperty(properties.useG117) && gRotationModal.getCurrent() !== 68.2;
 }
