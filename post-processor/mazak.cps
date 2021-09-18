@@ -214,6 +214,13 @@ properties = {
     value: true,
     scope: "post",
   },
+  enableMistCollector: {
+    title: "Enable mist collector",
+    description: "Turns on the mist collector at the beginning of operation and off at the end of the program",
+    type: "boolean",
+    value: true,
+    scope: "post",
+  },
 
   // Operation properties
   machiningMode: {
@@ -585,6 +592,10 @@ function onOpen() {
     writeBlock(gUnitModal.format(20));
   } else if (unit === MM) {
     writeBlock(gUnitModal.format(21));
+  }
+
+  if (getProperty(properties.enableMistCollector)) {
+    writeBlock(mFormat.format(613));
   }
 
   onCommand(COMMAND_START_CHIP_TRANSPORT);
@@ -2729,6 +2740,10 @@ function onClose() {
 
   if (probeVariables.probeAngleMethod == "G54.4") {
     writeBlock(gFormat.format(54.4), "P0");
+  }
+
+  if (getProperty(properties.enableMistCollector)) {
+    writeBlock(mFormat.format(614));
   }
 
   onImpliedCommand(COMMAND_END);

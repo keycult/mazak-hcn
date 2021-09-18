@@ -15,6 +15,7 @@ This project is developed using Keycult's [Post Utilities](https://github.com/ke
 - [x] Re-implement G5P2 (high speed smoothing, high speed machining)
 - [x] High pressure coolant control (M100 - M106 to set coolant pressure levels)
 - [x] G117 simultaneous operation (spindle accel/decel, through-spindle coolant)
+- [x] Mist collection
 - [ ] Niagara coolant control (M130)
 
 ## Post Properties
