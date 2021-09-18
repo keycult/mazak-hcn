@@ -221,6 +221,13 @@ properties = {
     value: true,
     scope: "post",
   },
+  breakDetectPassThrough: {
+    title: "Tool breakage pass through",
+    description: "Block to pass through to perform tool breakage detection on tool currently in spindle",
+    type: "string",
+    value: "M98 <keycult_tool_breakage_detect>",
+    scope: "post",
+  },
 
   // Operation properties
   machiningMode: {
@@ -2429,11 +2436,14 @@ function onCommand(command) {
   case COMMAND_STOP_CHIP_TRANSPORT:
     return;
   case COMMAND_BREAK_CONTROL:
-    // TODO
-    // Breakage detection not allowed in inclined-plane machining mode
-    // if (gRotationModal.getCurrent() === 68.2) {
-    //   cancelWorkPlane();
-    // }
+    if (getProperty(properties.breakDetectPassThrough)) {
+      if (gRotationModal.getCurrent() === 68.2) {
+        cancelWorkPlane();
+      }
+      writeBlock(gFormat.format(117), mFormat.format(5), disableCoolant(true));
+      writeBlock(getProperty(properties.breakDetectPassThrough));
+      sOutput.reset();
+    }
     return;
   case COMMAND_TOOL_MEASURE:
     return;

@@ -17,6 +17,7 @@ This project is developed using Keycult's [Post Utilities](https://github.com/ke
 - [x] G117 simultaneous operation (spindle accel/decel, through-spindle coolant)
 - [x] Mist collection
 - [ ] Niagara coolant control (M130)
+- [WIP] Tool break detection
 
 ## Post Properties
 
