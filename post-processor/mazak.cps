@@ -2429,6 +2429,11 @@ function onCommand(command) {
   case COMMAND_STOP_CHIP_TRANSPORT:
     return;
   case COMMAND_BREAK_CONTROL:
+    // TODO
+    // Breakage detection not allowed in inclined-plane machining mode
+    // if (gRotationModal.getCurrent() === 68.2) {
+    //   cancelWorkPlane();
+    // }
     return;
   case COMMAND_TOOL_MEASURE:
     return;
@@ -2467,7 +2472,8 @@ function onSectionEnd() {
   writeBlock(gPlaneModal.format(17));
 
   // Run break control on last section or if the tool is changing
-  if (isLastSection() || tool.number !== getNextSection().getTool().number) {
+  var tool = currentSection.getTool();
+  if (tool.getBreakControl() && (isLastSection() || tool.number !== getNextSection().getTool().number)) {
     onCommand(COMMAND_BREAK_CONTROL);
   }
 
