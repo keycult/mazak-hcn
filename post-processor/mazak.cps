@@ -486,6 +486,13 @@ function activateMachine() {
     return; // don't need to modify any settings for 3-axis machines
   }
 
+  tcpIsSupported = false;
+  _.forEach([machineConfiguration.getAxisU(), machineConfiguration.getAxisV(), machineConfiguration.getAxisW()], function (axis) {
+    if (axis.isEnabled() && axis.isTCPEnabled()) {
+      tcpIsSupported = true;
+    }
+  });
+
   if (machineConfiguration.performRewinds() || performRewinds) {
     machineConfiguration.enableMachineRewinds();
     machineConfiguration.setRewindStockExpansion(stockExpansion);
