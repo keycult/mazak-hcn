@@ -18,6 +18,7 @@ This project is developed using Keycult's [Post Utilities](https://github.com/ke
 - [x] Mist collection
 - [ ] Niagara coolant control (M130)
 - [WIP] Tool break detection
+- [ ] Include timestamp at top of program
 
 ## Post Properties
 
