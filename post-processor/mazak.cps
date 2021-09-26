@@ -48,7 +48,7 @@ properties = {
     title: "Program start NC pass through",
     group: "program",
     type: "string",
-    value: "M98 <keycult_set_schunk_offsets>",
+    value: "M98 <KEYCULT_SET_SCHUNK_OFFSETS>",
     scope: "post",
   },
   writeMachine: {
@@ -225,7 +225,7 @@ properties = {
     title: "Tool breakage pass through",
     description: "Block to pass through to perform tool breakage detection on tool currently in spindle",
     type: "string",
-    value: "M98 <keycult_tool_breakage_detect>",
+    value: "M98 <KEYCULT_TOOL_BREAKAGE_DETECT>",
     scope: "post",
   },
 
