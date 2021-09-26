@@ -1100,7 +1100,7 @@ var MACHINING_MODES = {
   P1:      gFormat.format(61.1) + " P1",
   P2:      gFormat.format(61.1) + " P2",
   P3:      gFormat.format(61.1) + " P3",
-  tapping: gFormat.format(63),
+  tapping: gFormat.format(64), // Option to use G63? I don't like it
   cutting: gFormat.format(64),
 };
 
@@ -1306,6 +1306,7 @@ function onSection() {
   var auxCodes = [];
 
   if (tool.type !== TOOL_PROBE &&
+      !isTappingCycle() &&
       (insertToolCall ||
       forceSpindleSpeed ||
       isFirstSection() ||
