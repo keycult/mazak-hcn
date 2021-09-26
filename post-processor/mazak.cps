@@ -147,7 +147,7 @@ properties = {
     title: "Use pitch for tapping",
     description: "Enables the use of pitch instead of feed for the F-word in canned tapping cycles.",
     type: "boolean",
-    value: false,
+    value: true,
     scope: "post",
   },
   useG54x4: {
