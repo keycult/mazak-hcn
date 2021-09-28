@@ -341,8 +341,14 @@ properties = {
     value: true,
     scope: "post",
   },
+  breakDetectEnable: {
+    title: "Tool breakage detection - Enable",
+    type: "boolean",
+    value: false,
+    scope: "post",
+  },
   breakDetectPassThrough: {
-    title: "Tool breakage pass through",
+    title: "Tool breakage detection - Pass through",
     description: "Block to pass through to perform tool breakage detection on tool currently in spindle",
     type: "string",
     value: "M98 <KEYCULT_TOOL_BREAKAGE_DETECT>",
@@ -2564,7 +2570,7 @@ function onCommand(command) {
   case COMMAND_STOP_CHIP_TRANSPORT:
     return;
   case COMMAND_BREAK_CONTROL:
-    if (getProperty(properties.breakDetectPassThrough)) {
+    if (getProperty(properties.breakDetectEnable)) {
       if (gRotationModal.getCurrent() === 68.2) {
         cancelWorkPlane();
       }
