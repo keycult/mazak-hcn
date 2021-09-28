@@ -2416,8 +2416,6 @@ var mapCommand = {
   COMMAND_STOP_SPINDLE: 5,
   COMMAND_LOAD_TOOL: 6,
   COMMAND_ORIENTATE_SPINDLE: 19,
-  COMMAND_UNLOCK_MULTI_AXIS: 46,
-  COMMAND_LOCK_MULTI_AXIS: 47,
 };
 
 function onCommand(command) {
@@ -2454,10 +2452,10 @@ function onCommand(command) {
     }
     return;
   case COMMAND_TOOL_MEASURE:
-    return;
   case COMMAND_PROBE_ON:
-    return;
   case COMMAND_PROBE_OFF:
+  case COMMAND_UNLOCK_MULTI_AXIS:
+  case COMMAND_LOCK_MULTI_AXIS:
     return;
   }
 
