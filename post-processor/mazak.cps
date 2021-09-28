@@ -343,7 +343,7 @@ var firstFeedParameter = 100;
 var useMultiAxisFeatures = true;
 var forceMultiAxisIndexing = false; // force multi-axis indexing for 3D programs
 var cancelTiltFirst = true; // cancel G68.2 with G69 prior to G54-G59 WCS block
-var useABCPrepositioning = false; // position ABC axes prior to G68.2 block
+var useABCPrepositioning = true; // position ABC axes prior to G68.2 block
 
 var WARNING_WORK_OFFSET = 0;
 
