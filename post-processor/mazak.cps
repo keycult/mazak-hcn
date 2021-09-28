@@ -1331,16 +1331,6 @@ function onSection() {
       getPreviousSection().isMultiAxis() && !currentSection.isMultiAxis()); // force newWorkPlane between indexing and simultaneous operations
 
   if (insertToolCall || newWorkOffset || newWorkPlane) {
-    if (insertToolCall && !isFirstSection()) {
-      if (useG117()) {
-        var codes = [gFormat.format(117), mFormat.format(5)].concat(disableCoolant(true));
-        _.apply(writeBlock, codes);
-      } else {
-        writeBlock(mFormat.format(5));
-        disableCoolant();
-      }
-    }
-
     writeRetract(Z);
 
     if (insertToolCall && !isFirstSection()) {
@@ -1424,6 +1414,8 @@ function onSection() {
     if (getProperty(properties.showToolComments) && tool.comment) {
       writeComment(tool.comment);
     }
+
+    coolantState.currentMode = COOLANT_OFF;
   }
 
   forceXYZ();
@@ -2500,7 +2492,11 @@ function formatCoolantCodes(codes) {
 
 function enableCoolant(coolantMode, suppressWrite) {
   // Turn off coolant if we're changing coolant modes
-  if (coolantMode !== coolantState.currentMode && !isFirstSection()) {
+  if (
+    coolantState.currentMode !== COOLANT_OFF &&
+    coolantMode !== coolantState.currentMode &&
+    !isFirstSection()
+  ) {
     writeBlock(formatCoolantCodes(coolantOffCodes).join(getWordSeparator()));
   }
 

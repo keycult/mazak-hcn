@@ -23,6 +23,7 @@ This project is developed using Keycult's [Post Utilities](https://github.com/ke
 - [ ] Figure out why spindle doesn't start early on drilling cycles
 - [ ] Figure out in-process probing
 - [ ] Add position for operator property at cycle end
+- [ ] Ensure sync tapping is being used
 
 ## Post Properties
 
