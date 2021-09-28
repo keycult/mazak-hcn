@@ -1418,11 +1418,6 @@ function onSection() {
     coolantState.currentMode = COOLANT_OFF;
   }
 
-  forceXYZ();
-  defineWorkPlane(currentSection, true);
-
-  setProbeAngle(); // output probe angle rotations if required
-
   var auxCodes = [];
 
   if (tool.type !== TOOL_PROBE &&
@@ -1457,6 +1452,15 @@ function onSection() {
   } else {
     _.forEach(auxCodes, function (code) { writeBlock(code) });
   }
+
+  if (getProperty(properties.enableMachiningModes)) {
+    setMachiningMode();
+  }
+
+  forceXYZ();
+  defineWorkPlane(currentSection, true);
+
+  setProbeAngle(); // output probe angle rotations if required
 
   forceAny();
   gMotionModal.reset();
@@ -1539,10 +1543,6 @@ function onSection() {
     inspectionCreateResultsFileHeader();
   } else if (isInspectionOperation() && (typeof inspectionProcessSectionStart == "function")) {
     inspectionProcessSectionStart();
-  }
-
-  if (getProperty(properties.enableMachiningModes)) {
-    setMachiningMode();
   }
 
   subprogramDefine();
