@@ -354,6 +354,12 @@ properties = {
     value: "M98 <KEYCULT_TOOL_BREAKAGE_DETECT>",
     scope: "post",
   },
+  positionXYWithABC: {
+    title: "Position XY with ABC for non-multi-axis sections",
+    type: "boolean",
+    value: true,
+    scope: "post",
+  },
 
   // Operation properties
   machiningMode: {
@@ -954,7 +960,7 @@ function cancelWorkPlane(force) {
   forceWorkPlane();
 }
 
-function setWorkPlane(abc) {
+function setWorkPlane(abc, initialPosition) {
   if (!forceMultiAxisIndexing && is3D() && !machineConfiguration.isMultiAxisConfiguration()) {
     return; // ignore
   }
@@ -979,12 +985,19 @@ function setWorkPlane(abc) {
       var machineABC = abc.isNonZero() ? getWorkPlaneMachineABC(currentSection.workPlane, false, false) : abc;
       if (useABCPrepositioning || abc.isZero()) {
         gMotionModal.reset();
-        writeBlock(
+        var commands = [
           gMotionModal.format(0),
           conditional(machineConfiguration.isMachineCoordinate(0), "A" + abcFormat.format(machineABC.x)),
           conditional(machineConfiguration.isMachineCoordinate(1), "B" + abcFormat.format(machineABC.y)),
-          conditional(machineConfiguration.isMachineCoordinate(2), "C" + abcFormat.format(machineABC.z))
-        );
+          conditional(machineConfiguration.isMachineCoordinate(2), "C" + abcFormat.format(machineABC.z)),
+        ];
+
+        if (getProperty(properties.positionXYWithABC) && initialPosition && abc.isZero()) {
+          commands.push(xOutput.format(initialPosition.x));
+          commands.push(yOutput.format(initialPosition.y));
+        }
+
+        _.apply(writeBlock, commands);
       }
       setCurrentABC(machineABC); // required for machine simulation
     }
@@ -1593,7 +1606,7 @@ function defineWorkPlane(_section, _setWorkPlane) {
         abc = getWorkPlaneMachineABC(_section.workPlane, _setWorkPlane, true);
       }
       if (_setWorkPlane) {
-        setWorkPlane(abc);
+        setWorkPlane(abc, getFramePosition(_section.getInitialPosition()));
       }
     }
   } else { // pure 3D
