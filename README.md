@@ -22,6 +22,7 @@ This project is developed using Keycult's [Post Utilities](https://github.com/ke
 - [ ] Remove M5 M9s before tool change
 - [ ] Figure out why spindle doesn't start early on drilling cycles
 - [ ] Figure out in-process probing
+- [ ] Add position for operator property at cycle end
 
 ## Post Properties
 

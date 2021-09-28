@@ -985,7 +985,9 @@ function setWorkPlane(abc) {
     if (abc.isNonZero()) {
       gRotationModal.reset();
       writeBlock(gRotationModal.format(68.2), "X" + xyzFormat.format(0), "Y" + xyzFormat.format(0), "Z" + xyzFormat.format(0), "I" + abcFormat.format(abc.x), "J" + abcFormat.format(abc.y), "K" + abcFormat.format(abc.z)); // set frame
-      writeBlock(gFormat.format(53.1)); // turn machine
+      if (!useABCPrepositioning) {
+        writeBlock(gFormat.format(53.1)); // turn machine
+      }
     } else {
       if (!cancelTiltFirst) {
         cancelWorkPlane();
