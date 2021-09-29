@@ -344,14 +344,14 @@ properties = {
   breakDetectEnable: {
     title: "Tool breakage detection - Enable",
     type: "boolean",
-    value: false,
+    value: true,
     scope: "post",
   },
   breakDetectPassThrough: {
     title: "Tool breakage detection - Pass through",
     description: "Block to pass through to perform tool breakage detection on tool currently in spindle",
     type: "string",
-    value: "M98 <KEYCULT_TOOL_BREAKAGE_DETECT>",
+    value: "G65 <KEYCULT_TOOL_BREAKAGE_DETECT>",
     scope: "post",
   },
   positionXYWithABC: {

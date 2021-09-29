@@ -19,7 +19,7 @@ This project is developed using Keycult's [Post Utilities](https://github.com/ke
 - [ ] Niagara coolant control (M130)
 - [WIP] Tool break detection
 - [ ] Include timestamp at top of program
-- [ ] Remove M5 M9s before tool change
+- [x] Remove M5 M9s before tool change
 - [ ] Figure out why spindle doesn't start early on drilling cycles
 - [ ] Figure out in-process probing
 - [ ] Add position for operator property at cycle end
