@@ -16,14 +16,15 @@ This project is developed using Keycult's [Post Utilities](https://github.com/ke
 - [x] High pressure coolant control (M100 - M106 to set coolant pressure levels)
 - [x] G117 simultaneous operation (spindle accel/decel, through-spindle coolant)
 - [x] Mist collection
-- [ ] Niagara coolant control (M130)
-- [WIP] Tool break detection
-- [ ] Include timestamp at top of program
+- [x] Tool break detection
 - [x] Remove M5 M9s before tool change
+- [x] Figure out in-process probing
 - [ ] Figure out why spindle doesn't start early on drilling cycles
-- [ ] Figure out in-process probing
+- [ ] Include timestamp at top of program
+- [ ] Niagara coolant control (M130)
 - [ ] Add position for operator property at cycle end
 - [ ] Ensure sync tapping is being used
+- [ ] Retract to home 2 (tool change position) at end of program
 
 ## Post Properties
 

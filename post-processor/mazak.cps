@@ -128,6 +128,12 @@
     return result;
   });
 
+  _.sectionsAfter = function (s1) {
+    return _.filter(_.allSections(), function (s2) {
+      return s2.getId() > s1.getId();
+    });
+  };
+
   global._ = _;
 }(this));
 
@@ -342,13 +348,13 @@ properties = {
     scope: "post",
   },
   breakDetectEnable: {
-    title: "Tool breakage detection - Enable",
+    title: "Tool breakage detection: Enable",
     type: "boolean",
     value: true,
     scope: "post",
   },
   breakDetectPassThrough: {
-    title: "Tool breakage detection - Pass through",
+    title: "Tool breakage detection: Pass through",
     description: "Block to pass through to perform tool breakage detection on tool currently in spindle",
     type: "string",
     value: "G65 <KEYCULT_TOOL_BREAKAGE_DETECT>",
@@ -356,6 +362,13 @@ properties = {
   },
   positionXYWithABC: {
     title: "Position XY with ABC for non-multi-axis sections",
+    type: "boolean",
+    value: true,
+    scope: "post",
+  },
+  ensureToolLength: {
+    title: "Ensure tool length",
+    description: "Ensure that the length of the tool in the spindle is greater than or equal to the programmed length",
     type: "boolean",
     value: true,
     scope: "post",
@@ -745,6 +758,8 @@ function onOpen() {
   }
 
   onCommand(COMMAND_START_CHIP_TRANSPORT);
+
+  _.forEach(_.allSections(), registerSection);
 }
 
 function onComment(message) {
@@ -1223,17 +1238,32 @@ var patternState = {
   skippedSections: {},
 };
 
-function registerSection() {
-  if (currentSection.isPatterned() && getProperty(properties.onlyPostFirstPatternedInstance)) {
-    if (patternState.knownPatterns[currentSection.getPatternId()]) {
-      patternState.skippedSections[currentSection.getId()] = true;
+function registerSection(section) {
+  if (section.isPatterned() && getProperty(properties.onlyPostFirstPatternedInstance)) {
+    if (patternState.knownPatterns[section.getPatternId()]) {
+      patternState.skippedSections[section.getId()] = true;
     }
-    patternState.knownPatterns[currentSection.getPatternId()] = true;
+    patternState.knownPatterns[section.getPatternId()] = true;
   }
 }
 
-function skippingSection() {
-  return !!patternState.skippedSections[currentSection.getId()];
+function skippingSection(section) {
+  section = section || currentSection;
+  return !!patternState.skippedSections[section.getId()];
+}
+
+function getNextNonSkippedSection() {
+  if (isLastSection()) {
+    return;
+  }
+
+  return _.find(_.sectionsAfter(currentSection), function (section) {
+    return !skippingSection(section);
+  });
+}
+
+function hasNextNonSkippedSection() {
+  return !!getNextNonSkippedSection();
 }
 
 var MACHINING_MODES = {
@@ -1319,8 +1349,48 @@ function setTSCPressure() {
   writeBlock(tscPressureModal.format(tscPressure));
 }
 
+function writeToolCall(tool) {
+  forceWorkPlane();
+
+  if (!isFirstSection() && getProperty(properties.optionalStop)) {
+    onCommand(COMMAND_OPTIONAL_STOP);
+  }
+
+  if (tool.number > 99999999) {
+    warning(localize("Tool number exceeds maximum value."));
+  }
+
+  disableLengthCompensation(false);
+
+  var nextTool;
+  if (getProperty(properties.preloadTool)) {
+    nextTool = getNextTool(tool.number) || getSection(0).getTool();
+  }
+
+  writeBlock(
+    mFormat.format(6),
+    "T" + formatToolNumber(tool),
+    conditional(nextTool && nextTool.number !== tool.number, "T" + formatToolNumber(nextTool))
+  );
+
+  if (getProperty(properties.showToolComments) && tool.comment) {
+    writeComment(tool.comment);
+  }
+
+  if (getProperty(properties.ensureToolLength) && tool.type !== TOOL_PROBE) {
+    writeToolCall._formatEnsureH = createFormat({ prefix: "H", decimals: 4, forceDecimal: true });
+
+    writeBlock(
+      gFormat.format(65),
+      "<ENSURE_TOOL_LENGTH>",
+      writeToolCall._formatEnsureH.format(tool.getBodyLength() + tool.getHolderLength())
+    );
+  }
+
+  coolantState.currentMode = COOLANT_OFF;
+}
+
 function onSection() {
-  registerSection();
   if (skippingSection()) return skipRemainingSection();
 
   retracted = false;
@@ -1400,35 +1470,7 @@ function onSection() {
   }
 
   if (insertToolCall) {
-    forceWorkPlane();
-
-    if (!isFirstSection() && getProperty(properties.optionalStop)) {
-      onCommand(COMMAND_OPTIONAL_STOP);
-    }
-
-    if (tool.number > 100000000) {
-      warning(localize("Tool number exceeds maximum value."));
-    }
-
-    disableLengthCompensation(false);
-
-    var nextTool;
-
-    if (getProperty(properties.preloadTool)) {
-      nextTool = getNextTool(tool.number) || getSection(0).getTool();
-    }
-
-    writeBlock(
-      mFormat.format(6),
-      "T" + formatToolNumber(tool),
-      conditional(nextTool, "T" + formatToolNumber(nextTool))
-    );
-
-    if (getProperty(properties.showToolComments) && tool.comment) {
-      writeComment(tool.comment);
-    }
-
-    coolantState.currentMode = COOLANT_OFF;
+    writeToolCall(tool);
   }
 
   var auxCodes = [];
@@ -2292,7 +2334,7 @@ function getProbingArguments(cycle, updateWCS) {
   var outputWCSCode = updateWCS && currentSection.strategy == "probe";
   if (outputWCSCode) {
     validate(probeOutputWorkOffset <= 99, "Work offset is out of range.");
-    var nextWorkOffset = hasNextSection() ? getNextSection().workOffset == 0 ? 1 : getNextSection().workOffset : -1;
+    var nextWorkOffset = hasNextNonSkippedSection() ? getNextNonSkippedSection().workOffset == 0 ? 1 : getNextNonSkippedSection().workOffset : -1;
     if (probeOutputWorkOffset == nextWorkOffset) {
       currentWorkOffset = undefined;
     }
@@ -2626,7 +2668,7 @@ function onSectionEnd() {
 
   // Run break control on last section or if the tool is changing
   var tool = currentSection.getTool();
-  if (tool.getBreakControl() && (isLastSection() || tool.number !== getNextSection().getTool().number)) {
+  if (tool.getBreakControl() && (isLastSection() || tool.number !== getNextNonSkippedSection().getTool().number)) {
     onCommand(COMMAND_BREAK_CONTROL);
   }
 

@@ -1,0 +1,30 @@
+(Ensure tool length in spindle)
+(Currently requires MAZATROL tool data)
+(- Args:)
+(--- H #11: Programmed tool length)
+
+IF [#11 EQ #0] THEN
+(Press cycle start to continue without check)
+(Press reset to cancel operation)
+#3006 = 31 (MISSING*ARG*H)
+GOTO 9999
+ENDIF
+
+IF [#11 LE 0] THEN
+(Press cycle start to continue without check)
+(Press reset to cancel operation)
+#3006 = 32 (INVALID*ARG*H*LE*0)
+GOTO 9999
+ENDIF
+
+#1 = #[60000 + #3020] (MAZATROL tool length by tool data index)
+
+IF [#11 LT #1] THEN
+(WARNING! Continuing could result in collision)
+(Press cycle start to continue)
+(Press reset to cancel operation)
+#3006 = 21 (WARNING*TOOL*LEN*TOO*SHORT)
+ENDIF
+
+N9999
+M99
