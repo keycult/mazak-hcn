@@ -44,6 +44,7 @@
         return element;
       }
     }
+    return undefined;
   };
 
   _.any = function (arr, pred) {
@@ -1254,7 +1255,7 @@ function skippingSection(section) {
 
 function getNextNonSkippedSection() {
   if (isLastSection()) {
-    return;
+    return undefined;
   }
 
   return _.find(_.sectionsAfter(currentSection), function (section) {
@@ -1601,6 +1602,8 @@ function onSection() {
   }
 
   subprogramDefine();
+
+  return undefined;
 }
 
 function defineWorkPlane(_section, _setWorkPlane) {
