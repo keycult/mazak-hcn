@@ -2929,11 +2929,6 @@ function onClose() {
     }
   }
 
-  if (probeVariables.probeAngleMethod == "G68") {
-    cancelWorkPlane();
-  }
-  writeln("");
-
   if (getProperty(properties.useG117)) {
     writeBlock(gFormat.format(117), mFormat.format(5), mFormat.format(9));
   } else {
@@ -2941,9 +2936,8 @@ function onClose() {
   }
 
   writeRetract(Z);
+  cancelWorkPlane();
   disableLengthCompensation(true);
-
-  setWorkPlane(new Vector(0, 0, 0)); // reset working plane
 
   if (probeVariables.probeAngleMethod == "G54.4") {
     writeBlock(gFormat.format(54.4), "P0");
