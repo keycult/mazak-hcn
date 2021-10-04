@@ -2934,8 +2934,11 @@ function onClose() {
   }
   writeln("");
 
-  onCommand(COMMAND_STOP_SPINDLE);
-  onCommand(COMMAND_COOLANT_OFF);
+  if (getProperty(properties.useG117)) {
+    writeBlock(gFormat.format(117), mFormat.format(5), mFormat.format(9));
+  } else {
+    writeBlock(mFormat.format(5), mFormat.format(9));
+  }
 
   writeRetract(Z);
   disableLengthCompensation(true);
