@@ -294,7 +294,7 @@ properties = {
       {title: "Clearance Height", id: "clearanceHeight"},
       {title: "G30 P4", id: "G30P4"}
     ],
-    value: "G30P4",
+    value: "G53",
     scope: "post",
   },
   singleResultsFile: {
