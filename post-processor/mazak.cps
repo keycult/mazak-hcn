@@ -292,9 +292,9 @@ properties = {
       // {title: "G28", id: "G28"},
       {title: "G53", id: "G53"},
       {title: "Clearance Height", id: "clearanceHeight"},
-      {title: "G30 P3", id: "G30P3"}
+      {title: "G30 P4", id: "G30P4"}
     ],
-    value: "G30P3",
+    value: "G30P4",
     scope: "post",
   },
   singleResultsFile: {
@@ -2729,7 +2729,7 @@ function writeRetract() {
   var _xHome;
   var _yHome;
   var _zHome;
-  if (method === "G28" || method === "G30P3") {
+  if (method === "G28" || method === "G30P4") {
     _xHome = toPreciseUnit(0, MM);
     _yHome = toPreciseUnit(0, MM);
     _zHome = toPreciseUnit(0, MM);
@@ -2766,10 +2766,10 @@ function writeRetract() {
       writeBlock(gFormat.format(28), gAbsIncModal.format(91), words);
       writeBlock(gAbsIncModal.format(90));
       break;
-    case "G30P3":
+    case "G30P4":
       gMotionModal.reset();
       gAbsIncModal.reset();
-      writeBlock(gFormat.format(30), "P3", gAbsIncModal.format(91), words);
+      writeBlock(gFormat.format(30), "P4", gAbsIncModal.format(91), words);
       writeBlock(gAbsIncModal.format(90));
       break;
     case "G53":
