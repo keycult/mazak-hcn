@@ -1292,7 +1292,7 @@ var MACHINING_MODES = {
   P1:      gFormat.format(61.1) + " P1",
   P2:      gFormat.format(61.1) + " P2",
   P3:      gFormat.format(61.1) + " P3",
-  tapping: gFormat.format(64), // Option to use G63? I don't like it
+  tapping: gFormat.format(61.1), // G61.1 will automatically suspend during tapping
   cutting: gFormat.format(64),
   probing: "probing", // Not output
 };
