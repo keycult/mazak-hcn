@@ -174,85 +174,87 @@ allowedCircularPlanes = undefined; // allow any circular motion
 probeMultipleFeatures = true;
 
 groupDefinitions = {
-  program:       { title: "Program",         order: 0 },
-  postControl:   { title: "Post Processing", order: 1 },
-  documentation: { title: "Documentation",   order: 2 },
-  formatting:    { title: "Formatting",      order: 3 },
+  postControl: { title: "Post Processor Features", order: 0 },
+  utilities: { title: "Program Utilities", order: 1 },
+  controlFeatures: { title: "Control Features", order: 2 },
+  documentation: { title: "Documentation", order: 3, collapsed: true },
+  formatting: { title: "Formatting", order: 4, collapsed: true },
 };
 
 properties = {
   ncPassThrough: {
+    group: "utilities",
     title: "Program start NC pass through",
-    group: "program",
     type: "string",
     value: "M98 <KEYCULT_SET_SCHUNK_OFFSETS>",
     scope: "post",
   },
   writeMachine: {
+    group: "documentation",
     title: "Write machine",
     description: "Output the machine settings in the header of the code.",
-    group: "documentation",
     type: "boolean",
     value: true,
     scope: "post",
   },
   writeTools: {
+    group: "documentation",
     title: "Write tool list",
     description: "Output a tool list in the header of the code.",
-    group: "documentation",
     type: "boolean",
     value: true,
     scope: "post",
   },
   showNotes: {
+    group: "documentation",
     title: "Write operation notes",
     description: "Writes operation notes as comments in the outputted code.",
-    group: "documentation",
     type: "boolean",
     value: true,
     scope: "post",
   },
   showToolComments: {
+    group: "documentation",
     title: "Write tool comments",
     description: "Writes tool comments after a tool change.",
-    group: "documentation",
     type: "boolean",
     value: false,
     scope: "post",
   },
   showSequenceNumbers: {
+    group: "formatting",
     title: "Sequence numbers: Enable",
     description: "Use sequence numbers for each block.",
-    group: "formatting",
     type: "boolean",
     value: false,
     scope: "post",
   },
   sequenceNumberStart: {
+    group: "formatting",
     title: "Sequence numbers: Start at",
     description: "Start sequence numbers at this value.",
-    group: "formatting",
     type: "integer",
     value: 10,
     scope: "post",
   },
   sequenceNumberIncrement: {
+    group: "formatting",
     title: "Sequence numbers: Increment by",
     description: "Increment sequence numbers by this amount.",
-    group: "formatting",
     type: "integer",
     value: 5,
     scope: "post",
   },
   separateWordsWithSpace: {
+    group: "formatting",
     title: "Separate words with space",
     description: "Adds spaces between words if 'yes' is selected.",
-    group: "formatting",
     type: "boolean",
     value: true,
     scope: "post",
   },
   preloadTool: {
+    group: "controlFeatures",
     title: "Preload next tool",
     description: "Preloads the next tool at a tool change (if any).",
     type: "boolean",
@@ -260,6 +262,7 @@ properties = {
     scope: "post",
   },
   optionalStop: {
+    group: "utilities",
     title: "Optional stop before tool change",
     description: "Outputs optional stop code before each tool change.",
     type: "boolean",
@@ -267,6 +270,7 @@ properties = {
     scope: "post",
   },
   useRadius: {
+    group: "controlFeatures",
     title: "Use radius arcs instead of IJK",
     description: "If yes is selected, arcs are outputted using radius values rather than IJK.",
     type: "boolean",
@@ -274,6 +278,7 @@ properties = {
     scope: "post",
   },
   useParametricFeed: {
+    group: "controlFeatures",
     title: "Use Q-value parametric feed",
     description: "Specifies the feed value that should be output using a Q value.",
     type: "boolean",
@@ -281,6 +286,7 @@ properties = {
     scope: "post",
   },
   usePitchForTapping: {
+    group: "controlFeatures",
     title: "Use pitch for tapping",
     description: "Enables the use of pitch instead of feed for the F-word in canned tapping cycles.",
     type: "boolean",
@@ -288,6 +294,7 @@ properties = {
     scope: "post",
   },
   useG54x4: {
+    group: "controlFeatures",
     title: "Use G54.4 for angular probing",
     description: "Use G54.4 workpiece error compensation for angular probing.",
     type: "boolean",
@@ -295,6 +302,7 @@ properties = {
     scope: "post",
   },
   safePositionMethod: {
+    group: "controlFeatures",
     title: "Safe retract method",
     description: "Select your desired retract option. 'Clearance Height' retracts to the operation clearance height.",
     type: "enum",
@@ -308,6 +316,7 @@ properties = {
     scope: "post",
   },
   singleResultsFile: {
+    group: "utilities",
     title: "Inspection: Create single results file",
     description: "Set to false if you want to store the measurement results for each probe / inspection toolpath in separate files",
     type: "boolean",
@@ -315,6 +324,7 @@ properties = {
     scope: "post",
   },
   useToolIdentifiers: {
+    group: "controlFeatures",
     title: "Use tool identifiers",
     description: "Uses alphanumeric tool identifiers instead of tool numbers to call tools.",
     type: "boolean",
@@ -330,22 +340,23 @@ properties = {
   //   scope: "post",
   // },
   onlyPostFirstPatternedInstance: {
+    group: "postControl",
     title: "Only post first patterned instance",
     description: "Only post the first of any encountered patterned operation.",
-    group: "postControl",
     type: "boolean",
     value: false,
     scope: "post",
   },
   enableMachiningModes: {
+    group: "postControl",
     title: "Enable machining modes defined per operation",
     description: "Machining modes are specified in the operation dialogue Post Processing tab",
-    group: "postControl",
     type: "boolean",
     value: true,
     scope: "post",
   },
   useG117: {
+    group: "controlFeatures",
     title: "Use G117",
     description: "Uses G117 to execute some auxiliary functions during axis movement (spindle, coolant, etc.)",
     type: "boolean",
@@ -353,6 +364,7 @@ properties = {
     scope: "post",
   },
   enableMistCollector: {
+    group: "utilities",
     title: "Enable mist collector",
     description: "Turns on the mist collector at the beginning of operation and off at the end of the program",
     type: "boolean",
@@ -360,12 +372,14 @@ properties = {
     scope: "post",
   },
   breakDetectEnable: {
+    group: "utilities",
     title: "Tool breakage detection: Enable",
     type: "boolean",
     value: true,
     scope: "post",
   },
   breakDetectPassThrough: {
+    group: "utilities",
     title: "Tool breakage detection: Pass through",
     description: "Block to pass through to perform tool breakage detection on tool currently in spindle",
     type: "string",
@@ -373,12 +387,14 @@ properties = {
     scope: "post",
   },
   positionXYWithABC: {
+    group: "utilities",
     title: "Position XY with ABC for non-multi-axis sections",
     type: "boolean",
     value: true,
     scope: "post",
   },
   ensureToolLength: {
+    group: "utilities",
     title: "Ensure tool length",
     description: "Ensure that the length of the tool in the spindle is greater than or equal to the programmed length",
     type: "boolean",
