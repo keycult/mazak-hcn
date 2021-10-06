@@ -535,6 +535,10 @@ var safeRetractDistance = (unit == IN) ? 1 : 25; // additional distance to retra
 var safeRetractFeed = (unit == IN) ? 20 : 500; // retract feed rate
 var safePlungeFeed = (unit == IN) ? 10 : 250; // plunge feed rate
 
+var probeState = {
+  on: false,
+};
+
 function writeBlock() {
   if (!formatWords(arguments)) {
     return;
@@ -2669,11 +2673,17 @@ function onCommand(command) {
     return;
 
   case COMMAND_PROBE_ON:
-    writeBlock(gFormat.format(65), "P" + 9832);
+    if (!probeState.on) {
+      writeBlock(gFormat.format(65), "P" + 9832);
+      probeState.on = true;
+    }
     return;
 
   case COMMAND_PROBE_OFF:
-    writeBlock(gFormat.format(65), "P" + 9833);
+    if (probeState.on) {
+      writeBlock(gFormat.format(65), "P" + 9833);
+      probeState.on = false;
+    }
     return;
 
   case COMMAND_START_CHIP_TRANSPORT:
@@ -2730,7 +2740,10 @@ function onSectionEnd() {
   }
 
   if (isProbeOperation()) {
-    onCommand(COMMAND_PROBE_OFF);
+    if (!hasNextNonSkippedSection() || getNextNonSkippedSection().getTool().type !== TOOL_PROBE) {
+      onCommand(COMMAND_PROBE_OFF);
+    }
+
     if (probeVariables.probeAngleMethod != "G68") {
       setProbeAngle(); // output probe angle rotations if required
     }
