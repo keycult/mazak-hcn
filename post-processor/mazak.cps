@@ -509,7 +509,8 @@ var allowIndexingWCSProbing = false; // specifies that probe WCS with tool orien
 var probeVariables = {
   outputRotationCodes: false, // defines if it is required to output rotation codes
   probeAngleMethod: "OFF", // OFF, AXIS_ROT, G68, G54.4
-  compensationXY: undefined
+  compensationXY: undefined,
+  probeOn: false,
 };
 
 // collected state
@@ -534,10 +535,6 @@ var stockExpansion = new Vector(toPreciseUnit(0.1, IN), toPreciseUnit(0.1, IN), 
 var safeRetractDistance = (unit == IN) ? 1 : 25; // additional distance to retract out of stock
 var safeRetractFeed = (unit == IN) ? 20 : 500; // retract feed rate
 var safePlungeFeed = (unit == IN) ? 10 : 250; // plunge feed rate
-
-var probeState = {
-  on: false,
-};
 
 function writeBlock() {
   if (!formatWords(arguments)) {
@@ -2673,16 +2670,16 @@ function onCommand(command) {
     return;
 
   case COMMAND_PROBE_ON:
-    if (!probeState.on) {
+    if (!probeVariables.probeOn) {
       writeBlock(gFormat.format(65), "P" + 9832);
-      probeState.on = true;
+      probeVariables.probeOn = true;
     }
     return;
 
   case COMMAND_PROBE_OFF:
-    if (probeState.on) {
+    if (probeVariables.probeOn) {
       writeBlock(gFormat.format(65), "P" + 9833);
-      probeState.on = false;
+      probeVariables.probeOn = false;
     }
     return;
 
