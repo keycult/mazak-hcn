@@ -3011,13 +3011,14 @@ function onClose() {
 
   cancelWorkPlane();
 
-  if (getProperty(properties.useG117)) {
-    writeBlock(gFormat.format(117), mFormat.format(5), mFormat.format(9));
-  } else {
-    writeBlock(mFormat.format(5), mFormat.format(9));
-  }
-
-  writeRetract(Z);
+  writeBlock(
+    gAbsIncModal.format(90),
+    gFormat.format(53),
+    gFormat.format(0),
+    "Z" + xyzFormat.format(0),
+    mFormat.format(5),
+    mFormat.format(9)
+  );
 
   if (probeVariables.probeAngleMethod == "G54.4") {
     writeBlock(gFormat.format(54.4), "P0");
