@@ -784,14 +784,8 @@ function onOpen() {
     gAbsIncModal.format(90),
     gFeedModeModal.format(94),
     gPlaneModal.format(17),
-    gFormat.format(49)
+    unit === IN ? gUnitModal.format(20) : gUnitModal.format(21)
   );
-
-  if (unit === IN) {
-    writeBlock(gUnitModal.format(20));
-  } else if (unit === MM) {
-    writeBlock(gUnitModal.format(21));
-  }
 
   if (getProperty(properties.enableMistCollector)) {
     writeBlock(mFormat.format(613));
@@ -1413,8 +1407,6 @@ function writeToolCall(tool) {
     warning(localize("Tool number exceeds maximum value."));
   }
 
-  disableLengthCompensation(false);
-
   var nextTool;
   if (getProperty(properties.preloadTool)) {
     nextTool = getNextTool(tool.number) || getSection(0).getTool();
@@ -1471,10 +1463,6 @@ function onSection() {
 
   if (insertToolCall || newWorkOffset || newWorkPlane) {
     writeRetract(Z);
-
-    if (insertToolCall && !isFirstSection()) {
-      disableLengthCompensation();
-    }
   }
 
   writeln("");
@@ -3030,7 +3018,6 @@ function onClose() {
   }
 
   writeRetract(Z);
-  disableLengthCompensation(true);
 
   if (probeVariables.probeAngleMethod == "G54.4") {
     writeBlock(gFormat.format(54.4), "P0");
@@ -3042,7 +3029,7 @@ function onClose() {
 
   onImpliedCommand(COMMAND_END);
   onImpliedCommand(COMMAND_STOP_SPINDLE);
-  writeBlock(mFormat.format(30)); // stop program, spindle stop, coolant off
+  writeBlock(mFormat.format(30));
 
   if (spState.programs.length > 0) {
     writeln("");
