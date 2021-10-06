@@ -521,6 +521,7 @@ var activeMovements; // do not use by default
 var currentFeedId;
 var maximumCircularRadiiDifference = toPreciseUnit(0.005, MM);
 var retracted = false; // specifies that the tool has been retracted to the safe plane
+var prepositionedXY = false;
 
 // Machine configuration
 var compensateToolLength = false; // add the tool length to the pivot distance for nonTCP rotary heads
@@ -1024,6 +1025,7 @@ function setWorkPlane(abc, initialPosition) {
         if (getProperty(properties.positionXYWithABC) && initialPosition && abc.isZero()) {
           commands.push(xOutput.format(initialPosition.x));
           commands.push(yOutput.format(initialPosition.y));
+          prepositionedXY = true;
         }
 
         _.apply(writeBlock, commands);
@@ -1420,6 +1422,7 @@ function onSection() {
   if (skippingSection()) return skipRemainingSection();
 
   retracted = false;
+  prepositionedXY = false;
 
   var previousSection = getPreviousNonSkippedSection();
 
@@ -1571,13 +1574,16 @@ function onSection() {
     disableLengthCompensation(false);
 
     if (!machineConfiguration.isHeadConfiguration()) {
+      if (!prepositionedXY) {
+        writeBlock(
+          gAbsIncModal.format(90),
+          gMotionModal.format(0),
+          xOutput.format(initialPosition.x),
+          yOutput.format(initialPosition.y)
+        );
+      }
       writeBlock(
         gAbsIncModal.format(90),
-        gMotionModal.format(0),
-        xOutput.format(initialPosition.x),
-        yOutput.format(initialPosition.y)
-      );
-      writeBlock(
         gMotionModal.format(0),
         gFormat.format(getOffsetCode()),
         zOutput.format(initialPosition.z),
