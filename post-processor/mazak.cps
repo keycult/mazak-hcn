@@ -1402,7 +1402,7 @@ function writeToolCall(tool) {
     writeComment(tool.comment);
   }
 
-  if (getProperty(properties.ensureToolLength) && tool.type !== TOOL_PROBE) {
+  if (getProperty(properties.ensureToolLength) && !isProbeOperation()) {
     writeToolCall._formatEnsureH = createFormat({ prefix: "H", decimals: 4, forceDecimal: true });
 
     writeBlock(
@@ -1506,7 +1506,7 @@ function onSection() {
     validate(probeVariables.probeAngleMethod !== "G54.4",
       "You cannot probe while workpiece setting error compensation G54.4 is enabled.");
 
-    writeBlock(gFormat.format(65), "P" + 9832); // probe on
+    onCommand(COMMAND_PROBE_ON);
     inspectionCreateResultsFileHeader();
   } else if (isInspectionOperation() && (typeof inspectionProcessSectionStart == "function")) {
     inspectionProcessSectionStart();
@@ -1514,7 +1514,7 @@ function onSection() {
 
   var auxCodes = [];
 
-  if (tool.type !== TOOL_PROBE && !isTappingCycle() && (
+  if (!isProbeOperation() && !isTappingCycle() && (
     insertToolCall ||
     forceSpindleSpeed ||
     rpmFormat.areDifferent(spindleSpeed, sOutput.getCurrent()) ||
@@ -2640,12 +2640,15 @@ function onCommand(command) {
     writeBlock(mFormat.format(0));
     forceSpindleSpeed = true;
     return;
+
   case COMMAND_COOLANT_ON:
     enableCoolant(COOLANT_FLOOD);
     return;
+
   case COMMAND_COOLANT_OFF:
     disableCoolant();
     return;
+
   case COMMAND_START_SPINDLE:
     onCommand(
       tool.clockwise ?
@@ -2653,10 +2656,7 @@ function onCommand(command) {
       COMMAND_SPINDLE_COUNTERCLOCKWISE
     );
     return;
-  case COMMAND_START_CHIP_TRANSPORT:
-    return;
-  case COMMAND_STOP_CHIP_TRANSPORT:
-    return;
+
   case COMMAND_BREAK_CONTROL:
     if (getProperty(properties.breakDetectEnable)) {
       if (gRotationModal.getCurrent() === 68.2) {
@@ -2667,9 +2667,18 @@ function onCommand(command) {
       sOutput.reset();
     }
     return;
-  case COMMAND_TOOL_MEASURE:
+
   case COMMAND_PROBE_ON:
+    writeBlock(gFormat.format(65), "P" + 9832);
+    return;
+
   case COMMAND_PROBE_OFF:
+    writeBlock(gFormat.format(65), "P" + 9833);
+    return;
+
+  case COMMAND_START_CHIP_TRANSPORT:
+  case COMMAND_STOP_CHIP_TRANSPORT:
+  case COMMAND_TOOL_MEASURE:
   case COMMAND_UNLOCK_MULTI_AXIS:
   case COMMAND_LOCK_MULTI_AXIS:
     return;
@@ -2721,7 +2730,7 @@ function onSectionEnd() {
   }
 
   if (isProbeOperation()) {
-    writeBlock(gFormat.format(65), "P" + 9833); // spin the probe off
+    onCommand(COMMAND_PROBE_OFF);
     if (probeVariables.probeAngleMethod != "G68") {
       setProbeAngle(); // output probe angle rotations if required
     }
