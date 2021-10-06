@@ -71,6 +71,10 @@
     return f.apply(thisArg, list);
   };
 
+  _.reverse = function (list) {
+    return [].concat(list).reverse();
+  };
+
   var objStringChecker = function (s) {
     return function (obj) {
       return Object.prototype.toString.call(obj) === "[object " + s + "]";
@@ -132,6 +136,12 @@
   _.sectionsAfter = function (s1) {
     return _.filter(_.allSections(), function (s2) {
       return s2.getId() > s1.getId();
+    });
+  };
+
+  _.sectionsBefore = function (s1) {
+    return _.filter(_.allSections(), function (s2) {
+      return s2.getId() < s1.getId();
     });
   };
 
@@ -1256,10 +1266,6 @@ function skippingSection(section) {
 }
 
 function getNextNonSkippedSection() {
-  if (isLastSection()) {
-    return undefined;
-  }
-
   return _.find(_.sectionsAfter(currentSection), function (section) {
     return !skippingSection(section);
   });
@@ -1267,6 +1273,17 @@ function getNextNonSkippedSection() {
 
 function hasNextNonSkippedSection() {
   return !!getNextNonSkippedSection();
+}
+
+function getPreviousNonSkippedSection() {
+  var previousSections = _.sectionsBefore(currentSection);
+  return _.find(_.reverse(previousSections), function (section) {
+    return !skippingSection(section);
+  });
+}
+
+function hasPreviousNonSkippedSection() {
+  return !!getPreviousNonSkippedSection();
 }
 
 var MACHINING_MODES = {
@@ -1277,6 +1294,7 @@ var MACHINING_MODES = {
   P3:      gFormat.format(61.1) + " P3",
   tapping: gFormat.format(64), // Option to use G63? I don't like it
   cutting: gFormat.format(64),
+  probing: "probing", // Not output
 };
 
 var machiningModeState = {
@@ -1301,7 +1319,7 @@ function isTappingCycle() {
 
 function getMachiningMode() {
   if (isProbeOperation()) {
-    return "cutting";
+    return "probing";
   } else if (isTappingCycle()) {
     return "tapping";
   } else {
@@ -1313,9 +1331,9 @@ function usingHighSpeedMode() {
   var machiningMode = getMachiningMode();
 
   return (
-    !isProbeOperation() &&
-    machiningMode !== "tapping" &&
-    getProperty(properties.highSpeedMode, currentSection.getId())
+    getProperty(properties.highSpeedMode, currentSection.getId()) &&
+    machiningMode !== "probing" &&
+    machiningMode !== "tapping"
   );
 }
 
@@ -1338,8 +1356,11 @@ function setMachiningMode() {
   validate(modeCode, "Post processor does not support machining mode: " + String(mode));
 
   if (mode !== machiningModeState.currentMode) {
-    writeBlock(modeCode);
     machiningModeState.currentMode = mode;
+
+    if (mode !== MACHINING_MODES.probing) {
+      writeBlock(modeCode);
+    }
   }
 
   usingHighSpeedMode() && enableHighSpeedMode();
@@ -1399,23 +1420,25 @@ function onSection() {
 
   retracted = false;
 
+  var previousSection = getPreviousNonSkippedSection();
+
   var insertToolCall = (
-    isFirstSection() ||
+    !previousSection ||
     currentSection.getForceToolChange && currentSection.getForceToolChange() ||
-    tool.number !== getPreviousSection().getTool().number
+    tool.number !== previousSection.getTool().number
   );
 
   var newWorkOffset = (
-    isFirstSection() ||
-    getPreviousSection().workOffset !== currentSection.workOffset
+    !previousSection ||
+    previousSection.workOffset !== currentSection.workOffset
   );
 
-  var newWorkPlane = isFirstSection() ||
-    !isSameDirection(getPreviousSection().getGlobalFinalToolAxis(), currentSection.getGlobalInitialToolAxis()) ||
-    (currentSection.isOptimizedForMachine() && getPreviousSection().isOptimizedForMachine() &&
-      Vector.diff(getPreviousSection().getFinalToolAxisABC(), currentSection.getInitialToolAxisABC()).length > 1e-4) || (!machineConfiguration.isMultiAxisConfiguration() && currentSection.isMultiAxis()) ||
-    (!getPreviousSection().isMultiAxis() && currentSection.isMultiAxis() ||
-      getPreviousSection().isMultiAxis() && !currentSection.isMultiAxis()); // force newWorkPlane between indexing and simultaneous operations
+  var newWorkPlane = !previousSection ||
+    !isSameDirection(previousSection.getGlobalFinalToolAxis(), currentSection.getGlobalInitialToolAxis()) ||
+    (currentSection.isOptimizedForMachine() && previousSection.isOptimizedForMachine() &&
+      Vector.diff(previousSection.getFinalToolAxisABC(), currentSection.getInitialToolAxisABC()).length > 1e-4) || (!machineConfiguration.isMultiAxisConfiguration() && currentSection.isMultiAxis()) ||
+    (!previousSection.isMultiAxis() && currentSection.isMultiAxis() ||
+      previousSection.isMultiAxis() && !currentSection.isMultiAxis()); // force newWorkPlane between indexing and simultaneous operations
 
   if (insertToolCall || newWorkOffset || newWorkPlane) {
     writeRetract(Z);
@@ -1477,15 +1500,27 @@ function onSection() {
     writeToolCall(tool);
   }
 
+  if (isProbeOperation()) {
+    validate(probeVariables.probeAngleMethod !== "G68",
+      "You cannot probe while G68 Rotation is in effect.");
+    validate(probeVariables.probeAngleMethod !== "G54.4",
+      "You cannot probe while workpiece setting error compensation G54.4 is enabled.");
+
+    writeBlock(gFormat.format(65), "P" + 9832); // probe on
+    inspectionCreateResultsFileHeader();
+  } else if (isInspectionOperation() && (typeof inspectionProcessSectionStart == "function")) {
+    inspectionProcessSectionStart();
+  }
+
   var auxCodes = [];
 
-  if (tool.type !== TOOL_PROBE &&
-      !isTappingCycle() &&
-      (insertToolCall ||
-      forceSpindleSpeed ||
-      isFirstSection() ||
-      rpmFormat.areDifferent(spindleSpeed, sOutput.getCurrent()) ||
-      tool.clockwise !== getPreviousSection().getTool().clockwise)) {
+  if (tool.type !== TOOL_PROBE && !isTappingCycle() && (
+    insertToolCall ||
+    forceSpindleSpeed ||
+    rpmFormat.areDifferent(spindleSpeed, sOutput.getCurrent()) ||
+    !previousSection ||
+    tool.clockwise !== previousSection.getTool().clockwise
+  )) {
     forceSpindleSpeed = false;
 
     validate(spindleSpeed >= 1, "Spindle speed out of range: " + spindleSpeed);
@@ -1527,7 +1562,7 @@ function onSection() {
     }
   }
 
-  if (insertToolCall || !lengthCompensationActive || retracted || (!isFirstSection() && getPreviousSection().isMultiAxis())) {
+  if (insertToolCall || !lengthCompensationActive || retracted || (previousSection && previousSection.isMultiAxis())) {
     gMotionModal.reset();
     writeBlock(gPlaneModal.format(17));
 
@@ -1576,32 +1611,25 @@ function onSection() {
     setMachiningMode();
   }
 
-  if (getProperty(properties.useParametricFeed) &&
-      hasParameter("operation-strategy") &&
-      (getParameter("operation-strategy") != "drill") && // legacy
-      !(currentSection.hasAnyCycle && currentSection.hasAnyCycle())) {
-    if (!insertToolCall &&
-        activeMovements &&
-        (getCurrentSectionId() > 0) &&
-        ((getPreviousSection().getPatternId() == currentSection.getPatternId()) && (currentSection.getPatternId() != 0))) {
+  if (
+    getProperty(properties.useParametricFeed) &&
+    hasParameter("operation-strategy") &&
+    getParameter("operation-strategy") !== "drill" && // legacy
+    !(currentSection.hasAnyCycle && currentSection.hasAnyCycle())
+  ) {
+    if (
+      !insertToolCall &&
+      activeMovements &&
+      previousSection &&
+      previousSection.getPatternId() !== 0 &&
+      previousSection.getPatternId() === currentSection.getPatternId()
+    ) {
       // use the current feeds
     } else {
       initializeActiveFeeds();
     }
   } else {
     activeMovements = undefined;
-  }
-
-  if (isProbeOperation()) {
-    validate(probeVariables.probeAngleMethod !== "G68",
-      "You cannot probe while G68 Rotation is in effect.");
-    validate(probeVariables.probeAngleMethod !== "G54.4",
-      "You cannot probe while workpiece setting error compensation G54.4 is enabled.");
-
-    writeBlock(gFormat.format(65), "P" + 9832); // probe on
-    inspectionCreateResultsFileHeader();
-  } else if (isInspectionOperation() && (typeof inspectionProcessSectionStart == "function")) {
-    inspectionProcessSectionStart();
   }
 
   subprogramDefine();
@@ -1993,7 +2021,8 @@ function onCyclePoint(x, y, z) {
       );
       break;
     case "probing-z":
-      protectedProbeMove(cycle, x, y, Math.min(z - cycle.depth + cycle.probeClearance, cycle.retract));
+      // NOTE: This seems unnecessary
+      // protectedProbeMove(cycle, x, y, Math.min(z - cycle.depth + cycle.probeClearance, cycle.retract));
       writeBlock(
         gFormat.format(65), "P" + 9811,
         "Z" + xyzFormat.format(z - cycle.depth),
@@ -2342,7 +2371,9 @@ function getProbingArguments(cycle, updateWCS) {
     validate(probeOutputWorkOffset <= 99, "Work offset is out of range.");
     var nextWorkOffset = hasNextNonSkippedSection() ? getNextNonSkippedSection().workOffset == 0 ? 1 : getNextNonSkippedSection().workOffset : -1;
     if (probeOutputWorkOffset == nextWorkOffset) {
-      currentWorkOffset = undefined;
+      // NOTE: Can't figure out why this was needed but it causes a lot of seemingly unnecessary
+      // retractions/etc. Getting rid of it.
+      // currentWorkOffset = undefined;
     }
   }
   return [
