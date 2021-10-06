@@ -721,6 +721,20 @@ function setFeedrateMode(reset) {
   }
 }
 
+function writeSafeStartModals() {
+  var words = [];
+
+  gUnitModal.reset()     && words.push(unit === IN ? gUnitModal.format(20) : gUnitModal.format(21));
+  gAbsIncModal.reset()   && words.push(gAbsIncModal.format(90));
+  gFeedModeModal.reset() && words.push(gFeedModeModal.format(94));
+  gPlaneModal.reset()    && words.push(gPlaneModal.format(17));
+  gCycleModal.reset()    && words.push(gCycleModal.format(80));
+
+  words.push(gFormat.format(40));
+
+  return _.apply(writeBlock, words);
+}
+
 function onOpen() {
   receivedMachineConfiguration =
     typeof machineConfiguration.isReceived === "function" ?
@@ -780,12 +794,7 @@ function onOpen() {
     writeln("");
   }
 
-  writeBlock(
-    gAbsIncModal.format(90),
-    gFeedModeModal.format(94),
-    gPlaneModal.format(17),
-    unit === IN ? gUnitModal.format(20) : gUnitModal.format(21)
-  );
+  writeSafeStartModals();
 
   if (getProperty(properties.enableMistCollector)) {
     writeBlock(mFormat.format(613));
@@ -1461,10 +1470,6 @@ function onSection() {
     (!previousSection.isMultiAxis() && currentSection.isMultiAxis() ||
       previousSection.isMultiAxis() && !currentSection.isMultiAxis()); // force newWorkPlane between indexing and simultaneous operations
 
-  if (insertToolCall || newWorkOffset || newWorkPlane) {
-    writeRetract(Z);
-  }
-
   writeln("");
 
   writeSectionSummary();
@@ -1495,6 +1500,10 @@ function onSection() {
   if (workOffset === 0) {
     warningOnce("Work offset has not been specified. Using G54 as WCS.", WARNING_WORK_OFFSET);
     workOffset = 1;
+  }
+
+  if (insertToolCall || newWorkOffset || newWorkPlane) {
+    writeRetract(Z);
   }
 
   if (workOffset !== currentWorkOffset) {
