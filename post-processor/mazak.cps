@@ -356,7 +356,7 @@ properties = {
     title: "Enable mist collector",
     description: "Turns on the mist collector at the beginning of operation and off at the end of the program",
     type: "boolean",
-    value: true,
+    value: false,
     scope: "post",
   },
   breakDetectEnable: {
