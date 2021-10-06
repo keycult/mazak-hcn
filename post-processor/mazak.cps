@@ -321,14 +321,14 @@ properties = {
     value: true,
     scope: "post",
   },
-  useSubprograms: {
-    title: "Output local subprograms",
-    description: "Output operations as local subprograms, sharing subprograms between pattern instances if possible.",
-    group: "postControl",
-    type: "boolean",
-    value: false,
-    scope: "post",
-  },
+  // useSubprograms: {
+  //   title: "Output local subprograms",
+  //   description: "Output operations as local subprograms, sharing subprograms between pattern instances if possible.",
+  //   group: "postControl",
+  //   type: "boolean",
+  //   value: false,
+  //   scope: "post",
+  // },
   onlyPostFirstPatternedInstance: {
     title: "Only post first patterned instance",
     description: "Only post the first of any encountered patterned operation.",
