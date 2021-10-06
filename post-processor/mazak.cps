@@ -383,7 +383,8 @@ properties = {
     type: "enum",
     values: [
       { title: "Auto", id: "auto" },
-      { title: "G61.1 P1 (Rough)", id: "P1" },
+      { title: "G61.1 P0 (Rough)", id: "P0" },
+      { title: "G61.1 P1 (Semi-Rough)", id: "P1" },
       { title: "G61.1 P2 (Smooth)", id: "P2" },
       { title: "G61.1 P3 (Accurate)", id: "P3" },
       { title: "G63 (Tapping)", id: "tapping" },
@@ -1269,7 +1270,8 @@ function hasNextNonSkippedSection() {
 }
 
 var MACHINING_MODES = {
-  auto:    gFormat.format(61.1) + " P0",
+  auto:    gFormat.format(61.1),
+  P0:      gFormat.format(61.1) + " P0",
   P1:      gFormat.format(61.1) + " P1",
   P2:      gFormat.format(61.1) + " P2",
   P3:      gFormat.format(61.1) + " P3",
@@ -1510,10 +1512,6 @@ function onSection() {
     _.forEach(auxCodes, function (code) { writeBlock(code) });
   }
 
-  if (getProperty(properties.enableMachiningModes)) {
-    setMachiningMode();
-  }
-
   forceXYZ();
   defineWorkPlane(currentSection, true);
 
@@ -1573,6 +1571,10 @@ function onSection() {
   }
 
   validate(lengthCompensationActive, "Length compensation should not be active.");
+
+  if (getProperty(properties.enableMachiningModes)) {
+    setMachiningMode();
+  }
 
   if (getProperty(properties.useParametricFeed) &&
       hasParameter("operation-strategy") &&
@@ -2672,7 +2674,9 @@ function onSectionEnd() {
 
   // Run break control on last section or if the tool is changing
   var tool = currentSection.getTool();
-  if (tool.getBreakControl() && (isLastSection() || tool.number !== getNextNonSkippedSection().getTool().number)) {
+  var nextSection = getNextNonSkippedSection();
+  var nextToolNumber = nextSection && nextSection.getTool().number;
+  if (tool.getBreakControl() && (isLastSection() || tool.number !== nextToolNumber)) {
     onCommand(COMMAND_BREAK_CONTROL);
   }
 
@@ -2936,6 +2940,8 @@ function onClose() {
     }
   }
 
+  cancelWorkPlane();
+
   if (getProperty(properties.useG117)) {
     writeBlock(gFormat.format(117), mFormat.format(5), mFormat.format(9));
   } else {
@@ -2943,7 +2949,6 @@ function onClose() {
   }
 
   writeRetract(Z);
-  cancelWorkPlane();
   disableLengthCompensation(true);
 
   if (probeVariables.probeAngleMethod == "G54.4") {
