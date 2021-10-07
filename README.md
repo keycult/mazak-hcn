@@ -19,8 +19,8 @@ This project is developed using Keycult's [Post Utilities](https://github.com/ke
 - [x] Tool break detection
 - [x] Remove M5 M9s before tool change
 - [x] Figure out in-process probing
+- [x] Include timestamp at top of program
 - [ ] Figure out why spindle doesn't start early on drilling cycles
-- [ ] Include timestamp at top of program
 - [ ] Niagara coolant control (M130)
 - [ ] Add position for operator property at cycle end
 - [ ] Ensure sync tapping is being used

@@ -586,15 +586,8 @@ function writeOptionalBlock() {
   }
 }
 
-function formatComment(text, options) {
-  options = options || {}
-  var preformattedText = text;
-
-  if (!options.noUpperCase) {
-    preformattedText = String(preformattedText).toUpperCase();
-  }
-
-  return "(" + filterText(preformattedText, permittedCommentChars) + ")";
+function formatComment(text) {
+  return "(" + filterText(text, permittedCommentChars) + ")";
 }
 
 function writeComment(text) {
@@ -604,28 +597,26 @@ function writeComment(text) {
 function formatToolForSummary(tool, zRanges) {
   var comment = "";
 
-  if (getProperty(properties.useToolIdentifiers)) {
+  if (getProperty(properties.useToolIdentifiers) && tool.description) {
     comment += "T-ID: ";
   } else {
     comment += "T";
   }
 
   comment += formatToolNumber(tool);
-  comment += " D=" + xyzFormat.format(tool.diameter);
-  comment += " CR=" + xyzFormat.format(tool.cornerRadius);
-
-  if (tool.taperAngle > 0 && tool.taperAngle < Math.PI) {
-    comment += " TAPER=" + taperFormat.format(tool.taperAngle) + "DEG";
-  }
 
   if (zRanges) {
     var zRange = zRanges[tool.number];
     if (zRange) {
-      comment += " ZMIN=" + xyzFormat.format(zRange.getMinimum());
+      comment += " Zmin=" + xyzFormat.format(zRange.getMinimum());
     }
   }
 
-  comment += " - " + getToolTypeName(tool.type);
+  if (tool.type === TOOL_PROBE) {
+    comment += " - Probe"
+  } else {
+    comment += " - Len=" + parseFloat(tool.getBodyLength().toFixed(4));
+  }
 
   return comment;
 }
@@ -636,10 +627,10 @@ function writeMachineSummary() {
   var description = machineConfiguration.getDescription();
 
   if (vendor || model || description) {
-    writeComment("MACHINE");
-    vendor && writeComment("--VENDOR: " + vendor);
-    model && writeComment("--MODEL: " + model);
-    description && writeComment("--DESCRIPTION: " + description);
+    writeComment("Machine");
+    vendor && writeComment("--Vendor: " + vendor);
+    model && writeComment("--Model: " + model);
+    description && writeComment("--Description: " + description);
   }
 }
 
@@ -760,6 +751,8 @@ function onOpen() {
 
   writeComment(programName);
   programComment && writeComment(programComment);
+  writeComment(formatPostDateTime(new Date()));
+
   writeln("");
 
   if (getProperty(properties.writeMachine)) {
@@ -1260,19 +1253,17 @@ function onParameter(name, value) {
 
 function writeSectionSummary() {
   var summary = [];
-
-  summary.push(formatComment(
-    "SECTION " + (parseInt(currentSection.getId(), 10) + 1)
-  ));
+  var sectionNumber = parseInt(currentSection.getId(), 10) + 1;
 
   if (hasParameter("operation-comment")) {
-    summary.push(formatComment(getParameter("operation-comment")));
+    summary.push(formatComment(
+      "Section " + sectionNumber + " - " + getParameter("operation-comment")
+    ));
+  } else {
+    summary.push(formatComment("Section " + sectionNumber));
   }
 
-  summary.push(formatComment(
-    formatToolForSummary(currentSection.getTool()),
-    { noUpperCase: true }
-  ));
+  summary.push(formatComment(formatToolForSummary(currentSection.getTool())));
 
   _.forEach(summary, function (s) { writeln(s); });
 }
@@ -3082,4 +3073,17 @@ function formatToolD(tool) {
 
 function useG117() {
   return getProperty(properties.useG117) && gRotationModal.getCurrent() !== 68.2;
+}
+
+function formatPostDateTime(d) {
+  // MM.DD.YYYY, HH.MMz
+  return (
+    "" +
+    (d.getMonth() + 1) + "." +
+    d.getDate() + "." +
+    d.getFullYear() + ", " +
+    (d.getHours() === 0 || d.getHours() === 12 ? 12 : d.getHours() % 12) + ":" +
+    (d.getMinutes() < 10 ? '0' + d.getMinutes() : d.getMinutes()) +
+    (d.getHours() >= 12 ? "pm" : "am")
+  );
 }
