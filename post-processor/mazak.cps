@@ -270,6 +270,14 @@ properties = {
     value: true,
     scope: "post",
   },
+  tscDepressurizationDelay: {
+    group: "utilities",
+    title: "Temp fix: M9 and delay before tool change for TSC depressurization",
+    description: "Set to 0 to remove delay",
+    type: "integer",
+    value: 5,
+    scope: "post",
+  },
 
   // Control Features
   preloadTool: {
@@ -1412,6 +1420,15 @@ function writeToolCall(tool) {
     nextTool = getNextTool(tool.number) || getSection(0).getTool();
   }
 
+  var tscDepressurizationDelay = parseInt(getProperty(properties.tscDepressurizationDelay), 10);
+  if (tscDepressurizationDelay > 0) {
+    var previousSection = getPreviousNonSkippedSection();
+    if (previousSection && toolUsesTSC(previousSection.getTool())) {
+      disableCoolant();
+      writeBlock(gFormat.format(4), "X" + xyzFormat.format(tscDepressurizationDelay));
+    }
+  }
+
   writeBlock(
     mFormat.format(6),
     "T" + formatToolNumber(tool),
@@ -1552,7 +1569,7 @@ function onSection() {
     ].join(getWordSeparator()));
   }
 
-  if (tool.coolant === COOLANT_THROUGH_TOOL || tool.coolant === COOLANT_FLOOD_THROUGH_TOOL) {
+  if (toolUsesTSC(tool)) {
     setTSCPressure();
   }
 
@@ -2597,6 +2614,10 @@ function onCircular(clockwise, cx, cy, cz, x, y, z, feed) {
 var coolantState = {
   currentMode: COOLANT_OFF,
 };
+
+function toolUsesTSC(tool) {
+  return tool.coolant === COOLANT_THROUGH_TOOL || tool.coolant === COOLANT_FLOOD_THROUGH_TOOL;
+}
 
 function formatCoolantCodes(codes) {
   return _.map(codes, function (code) { return mFormat.format(code) });
