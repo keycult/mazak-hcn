@@ -1154,7 +1154,8 @@ var spState = {
 };
 
 function subprogramDefine() {
-  if (!getProperty(properties.useSubprograms)) return;
+  return undefined;
+  if (!getProperty(properties.useSubprograms)) return undefined;
 
   spState.skippingPatternInstance = false;
 
@@ -1168,7 +1169,7 @@ function subprogramDefine() {
       spState.skippingPatternInstance = true;
       skipRemainingSection();
       setCurrentPosition(getFramePosition(currentSection.getFinalPosition()));
-      return;
+      return undefined;
     } else {
       spState.knownPatterns[pattern] = nextSubprogram;
     }
@@ -1178,6 +1179,8 @@ function subprogramDefine() {
   subprogramStart(nextSubprogram);
 
   spState.lastSubprogram = nextSubprogram;
+
+  return undefined;
 }
 
 function subprogramStart(subprogramNo) {
