@@ -1535,7 +1535,7 @@ function onSection() {
 
   var auxCodes = [];
 
-  if (!isProbeOperation() && !isTappingCycle() && (
+  if (!isProbeOperation() && (
     insertToolCall ||
     forceSpindleSpeed ||
     rpmFormat.areDifferent(spindleSpeed, sOutput.getCurrent()) ||
@@ -1550,10 +1550,11 @@ function onSection() {
       warning("Spindle speed exceeds maximum value.");
     }
 
-    auxCodes.push([
-      sOutput.format(spindleSpeed),
-      mFormat.format(tool.clockwise ? 3 : 4)
-    ].join(getWordSeparator()));
+    writeBlock(sOutput.format(spindleSpeed));
+
+    if (!isTappingCycle()) {
+      auxCodes.push(mFormat.format(tool.clockwise ? 3 : 4));
+    }
   }
 
   if (toolUsesTSC(tool)) {
