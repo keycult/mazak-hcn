@@ -1317,7 +1317,7 @@ var MACHINING_MODES = {
   P1:      gFormat.format(61.1) + " P1",
   P2:      gFormat.format(61.1) + " P2",
   P3:      gFormat.format(61.1) + " P3",
-  tapping: gFormat.format(61.1), // G61.1 will automatically suspend during tapping
+  // tapping: gFormat.format(63), // G61.1 will automatically suspend during tapping
   cutting: gFormat.format(64),
   probing: "probing", // Not output
 };
@@ -1346,19 +1346,17 @@ function getMachiningMode() {
   if (isProbeOperation()) {
     return "probing";
   } else if (isTappingCycle()) {
-    return "tapping";
+    return "auto";
   } else {
     return getProperty(properties.machiningMode, currentSection.getId());
   }
 }
 
 function usingHighSpeedMode() {
-  var machiningMode = getMachiningMode();
-
   return (
     getProperty(properties.highSpeedMode, currentSection.getId()) &&
-    machiningMode !== "probing" &&
-    machiningMode !== "tapping"
+    !isProbeOperation() &&
+    !isTappingCycle()
   );
 }
 
@@ -1381,7 +1379,7 @@ function setMachiningMode() {
   validate(modeCode, "Post processor does not support machining mode: " + String(mode));
 
   if (mode !== machiningModeState.currentMode && mode !== "probing") {
-    if (mode === "auto" && machiningModeState.currentMode.substring(0, 1) === "P") {
+    if (mode === "auto" && MACHINING_MODES[machiningModeState.currentMode].substring(0, 5) === "G61.1") {
       writeBlock(MACHINING_MODES.cutting);
     }
 
