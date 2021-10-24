@@ -329,7 +329,7 @@ properties = {
       // {title: "G28", id: "G28"},
       {title: "G53", id: "G53"},
       {title: "Clearance Height", id: "clearanceHeight"},
-      {title: "G30 P4", id: "G30P4"}
+      {title: "G30 P4", id: "G30P4"},
     ],
     value: "G53",
     scope: "post",
@@ -1388,12 +1388,13 @@ function setMachiningMode() {
   var modeCode = MACHINING_MODES[mode];
   validate(modeCode, "Post processor does not support machining mode: " + String(mode));
 
-  if (mode !== machiningModeState.currentMode) {
-    machiningModeState.currentMode = mode;
-
-    if (mode !== MACHINING_MODES.probing) {
-      writeBlock(modeCode);
+  if (mode !== machiningModeState.currentMode && mode !== "probing") {
+    if (mode === "auto" && machiningModeState.currentMode.substring(0, 1) === "P") {
+      writeBlock(MACHINING_MODES.cutting);
     }
+
+    machiningModeState.currentMode = mode;
+    writeBlock(modeCode);
   }
 
   usingHighSpeedMode() && enableHighSpeedMode();
