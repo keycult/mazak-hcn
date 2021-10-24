@@ -270,14 +270,6 @@ properties = {
     value: true,
     scope: "post",
   },
-  tscDepressurizationDelay: {
-    group: "utilities",
-    title: "Temp fix: M9 and delay before tool change for TSC depressurization",
-    description: "Set to 0 to remove delay",
-    type: "integer",
-    value: 5,
-    scope: "post",
-  },
 
   // Control Features
   preloadTool: {
@@ -1422,15 +1414,6 @@ function writeToolCall(tool) {
   var nextTool;
   if (getProperty(properties.preloadTool)) {
     nextTool = getNextTool(tool.number) || getSection(0).getTool();
-  }
-
-  var tscDepressurizationDelay = parseInt(getProperty(properties.tscDepressurizationDelay), 10);
-  if (tscDepressurizationDelay > 0) {
-    var previousSection = getPreviousNonSkippedSection();
-    if (previousSection && toolUsesTSC(previousSection.getTool())) {
-      disableCoolant();
-      writeBlock(gFormat.format(4), "X" + xyzFormat.format(tscDepressurizationDelay));
-    }
   }
 
   writeBlock(
