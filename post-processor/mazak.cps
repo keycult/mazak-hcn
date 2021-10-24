@@ -1323,7 +1323,7 @@ var MACHINING_MODES = {
 };
 
 var machiningModeState = {
-  currentMode: undefined,
+  currentMode: "cutting",
 };
 
 function isTappingCycle() {
