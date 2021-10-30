@@ -2689,7 +2689,6 @@ function onCommand(command) {
       if (gRotationModal.getCurrent() === 68.2) {
         cancelWorkPlane();
       }
-      writeBlock(gFormat.format(117), mFormat.format(5), disableCoolant(true));
       writeBlock(getProperty(properties.breakDetectPassThrough));
       sOutput.reset();
     }
