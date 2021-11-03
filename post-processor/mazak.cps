@@ -296,14 +296,6 @@ properties = {
     value: false,
     scope: "post",
   },
-  usePitchForTapping: {
-    group: "controlFeatures",
-    title: "Use pitch for tapping",
-    description: "Enables the use of pitch instead of feed for the F-word in canned tapping cycles.",
-    type: "boolean",
-    value: true,
-    scope: "post",
-  },
   useG54x4: {
     group: "controlFeatures",
     title: "Use G54.4 for angular probing",
@@ -340,6 +332,14 @@ properties = {
     description: "Uses G117 to execute some auxiliary functions during axis movement (spindle, coolant, etc.)",
     type: "boolean",
     value: true,
+    scope: "post",
+  },
+  syncTappingReturnSpeed: {
+    group: "controlFeatures",
+    title: "Synchronous tapping return speed (%)",
+    description: "Controls the return speed as a percentage of tapping speed",
+    type: "integer",
+    value: 200,
     scope: "post",
   },
 
@@ -1737,9 +1737,12 @@ function onCycle() {
 
 function getCommonCycle(x, y, z, r) {
   forceXYZ(); // force xyz on first drill hole of any cycle
-  return [xOutput.format(x), yOutput.format(y),
+  return [
+    xOutput.format(x),
+    yOutput.format(y),
     zOutput.format(z),
-    "R" + xyzFormat.format(r)];
+    "R" + xyzFormat.format(r)
+  ];
 }
 
 /** Convert approach to sign. */
@@ -1915,55 +1918,27 @@ function onCyclePoint(x, y, z) {
       }
       break;
     case "tapping":
-      if (getProperty(properties.usePitchForTapping)) {
-        writeBlock(
-          gRetractModal.format(98), gAbsIncModal.format(90), gCycleModal.format((tool.type == TOOL_TAP_LEFT_HAND) ? 74 : 84),
-          getCommonCycle(x, y, z, cycle.retract),
-          pitchOutput.format(tool.threadPitch)
-        );
-        forceFeed();
-      } else {
-        F = tool.getTappingFeedrate();
-        writeBlock(
-          gRetractModal.format(98), gAbsIncModal.format(90), gCycleModal.format((tool.type == TOOL_TAP_LEFT_HAND) ? 74 : 84),
-          getCommonCycle(x, y, z, cycle.retract),
-          feedOutput.format(F)
-        );
-      }
-      break;
     case "left-tapping":
-      if (getProperty(properties.usePitchForTapping)) {
-        writeBlock(
-          gRetractModal.format(98), gAbsIncModal.format(90), gCycleModal.format(74),
-          getCommonCycle(x, y, z, cycle.retract),
-          pitchOutput.format(tool.threadPitch)
-        );
-        forceFeed();
-      } else {
-        F = tool.getTappingFeedrate();
-        writeBlock(
-          gRetractModal.format(98), gAbsIncModal.format(90), gCycleModal.format(74),
-          getCommonCycle(x, y, z, cycle.retract),
-          feedOutput.format(F)
-        );
-      }
-      break;
     case "right-tapping":
-      if (getProperty(properties.usePitchForTapping)) {
-        writeBlock(
-          gRetractModal.format(98), gAbsIncModal.format(90), gCycleModal.format(84),
-          getCommonCycle(x, y, z, cycle.retract),
-          pitchOutput.format(tool.threadPitch)
-        );
-        forceFeed();
+      var tappingCycle;
+
+      if (cycleType === "right-tapping" || tool.type === TOOL_TAP_RIGHT_HAND) {
+        tappingCycle = 84;
+      } else if (cycleType === "left-tapping" || tool.type === TOOL_TAP_LEFT_HAND) {
+        tappingCycle = 74;
       } else {
-        F = tool.getTappingFeedrate();
-        writeBlock(
-          gRetractModal.format(98), gAbsIncModal.format(90), gCycleModal.format(84),
-          getCommonCycle(x, y, z, cycle.retract),
-          feedOutput.format(F)
-        );
+        error("Unknown tapping cycle");
       }
+
+      writeBlock(
+        gRetractModal.format(98),
+        gAbsIncModal.format(90),
+        gCycleModal.format(tappingCycle),
+        pitchOutput.format(tool.threadPitch),
+        "H" + getProperty(properties.syncTappingReturnSpeed),
+        conditional(P > 0, "P" + milliFormat.format(P)),
+        getCommonCycle(x, y, z, cycle.retract)
+      );
       break;
     case "fine-boring":
       // TAG: add support for counterclockwise direction
