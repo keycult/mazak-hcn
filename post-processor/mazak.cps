@@ -270,6 +270,14 @@ properties = {
     value: true,
     scope: "post",
   },
+  palletLoop: {
+    group: "utilities",
+    title: "Pallet/program loop with Block Skip 9",
+    description: "Enable block skip 9 to swap pallet and restart at end of cycle program",
+    type: "boolean",
+    value: true,
+    scope: "post",
+  },
 
   // Control Features
   preloadTool: {
@@ -344,14 +352,6 @@ properties = {
   },
 
   // Documentation
-  writeMachine: {
-    group: "documentation",
-    title: "Write machine",
-    description: "Output the machine settings in the header of the code.",
-    type: "boolean",
-    value: true,
-    scope: "post",
-  },
   writeTools: {
     group: "documentation",
     title: "Write tool list",
@@ -621,20 +621,50 @@ function formatToolForSummary(tool, zRanges) {
   return comment;
 }
 
+function writeHeader() {
+  writeComment(programName);
+  programComment && writeComment("  " + programComment);
+  writeComment("  " + formatPostDateTime(new Date()));
+  writeComment("  Machine Configuration: " + machineConfiguration.getVendor() + " " + machineConfiguration.getModel());
+  writeln("");
+
+  writePostFeatures();
+  writeln("");
+
+  if (getProperty(properties.writeTools)) {
+    writeToolSummary();
+    writeln("");
+  }
+}
+
 function writeMachineSummary() {
   var vendor = machineConfiguration.getVendor();
   var model = machineConfiguration.getModel();
-  var description = machineConfiguration.getDescription();
 
-  if (vendor || model || description) {
-    writeComment("Machine");
-    vendor && writeComment("--Vendor: " + vendor);
-    model && writeComment("--Model: " + model);
-    description && writeComment("--Description: " + description);
+  if (vendor || model) {
+    writeComment("Machine Configuration: " + vendor + " " + model);
+  }
+}
+
+function writePostFeatures() {
+  writeComment("Enabled Program Features:");
+
+  if (getProperty(properties.palletLoop)) {
+    writeComment("  Loop program: Enable Block Skip 9 to swap pallets and continue");
+  }
+
+  if (getProperty(properties.breakDetectEnable)) {
+    writeComment("  Tool breakage detection");
+  }
+
+  if (getProperty(properties.ensureToolLength)) {
+    writeComment("  Ensure tool length is greater than length in CAM");
   }
 }
 
 function writeToolSummary() {
+  writeComment("Tools:")
+
   var zRanges = {};
   if (is3D()) {
     _.forEach(_.allSections(), function (section) {
@@ -649,7 +679,7 @@ function writeToolSummary() {
   }
 
   _.forEach(_.allTools(), function (tool) {
-    writeComment(formatToolForSummary(tool, zRanges));
+    writeComment("  " + formatToolForSummary(tool, zRanges));
   });
 }
 
@@ -749,28 +779,7 @@ function onOpen() {
 
   validate(programName, "Program name has not been specified.");
 
-  writeComment(programName);
-  programComment && writeComment(programComment);
-  writeComment(formatPostDateTime(new Date()));
-
-  writeln("");
-
-  if (getProperty(properties.writeMachine)) {
-    writeMachineSummary();
-    writeln("");
-  }
-
-  //Probing Surface Inspection
-  if (typeof inspectionWriteVariables == "function") {
-    inspectionWriteVariables();
-    writeln("");
-  }
-
-  // dump tool information
-  if (getProperty(properties.writeTools)) {
-    writeToolSummary();
-    writeln("");
-  }
+  writeHeader();
 
   if (getNumberOfSections() > 0 && getSection(0).workOffset === 0) {
     var nonZeroOffset = _.any(_.allSections(), function (section) {
@@ -780,6 +789,12 @@ function onOpen() {
     if (nonZeroOffset) {
       error("Using multiple work offsets is not possible if the initial work offset is 0.");
     }
+  }
+
+  //Probing Surface Inspection
+  if (typeof inspectionWriteVariables == "function") {
+    inspectionWriteVariables();
+    writeln("");
   }
 
   if (getProperty(properties.ncPassThrough)) {
@@ -3011,7 +3026,14 @@ function onClose() {
 
   onImpliedCommand(COMMAND_END);
   onImpliedCommand(COMMAND_STOP_SPINDLE);
-  writeBlock(mFormat.format(30));
+
+  if (getProperty(properties.palletLoop)) {
+    writeBlock("/9", mFormat.format(30));
+    writeBlock(gFormat.format(65), "<SWAP_PALLET>");
+    writeBlock(mFormat.format(99));
+  } else {
+    writeBlock(mFormat.format(30));
+  }
 
   if (spState.programs.length > 0) {
     writeln("");

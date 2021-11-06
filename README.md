@@ -21,6 +21,7 @@ This project is developed using Keycult's [Post Utilities](https://github.com/ke
 - [x] Figure out in-process probing
 - [x] Include timestamp at top of program
 - [x] Synchronous tapping
+- [x] Automatic pallet change & program looping
 - [ ] Figure out why spindle doesn't start early on drilling cycles
 - [ ] Niagara coolant control (M130)
 - [ ] Add position for operator property at cycle end

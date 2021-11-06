@@ -1,0 +1,7 @@
+IF [#51998 EQ 1.] THEN
+  M912
+ELSE
+  M911
+ENDIF
+
+M99
