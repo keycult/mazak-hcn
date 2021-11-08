@@ -370,30 +370,6 @@ properties = {
   },
 
   // Formatting
-  showSequenceNumbers: {
-    group: "formatting",
-    title: "Sequence numbers: Enable",
-    description: "Use sequence numbers for each block.",
-    type: "boolean",
-    value: false,
-    scope: "post",
-  },
-  sequenceNumberStart: {
-    group: "formatting",
-    title: "Sequence numbers: Start at",
-    description: "Start sequence numbers at this value.",
-    type: "integer",
-    value: 10,
-    scope: "post",
-  },
-  sequenceNumberIncrement: {
-    group: "formatting",
-    title: "Sequence numbers: Increment by",
-    description: "Increment sequence numbers by this amount.",
-    type: "integer",
-    value: 5,
-    scope: "post",
-  },
   separateWordsWithSpace: {
     group: "formatting",
     title: "Separate words with space",
@@ -531,7 +507,6 @@ var probeVariables = {
 };
 
 // collected state
-var sequenceNumber;
 var currentWorkOffset;
 var forceSpindleSpeed = false;
 var activeMovements; // do not use by default
@@ -558,24 +533,11 @@ function writeBlock() {
   if (!formatWords(arguments)) {
     return;
   }
-  if (getProperty(properties.showSequenceNumbers)) {
-    writeWords2("N" + sequenceNumber, arguments);
-    sequenceNumber += getProperty(properties.sequenceNumberIncrement);
-  } else {
-    writeWords(arguments);
-  }
+  writeWords(arguments);
 }
 
 function writeOptionalBlock() {
-  if (getProperty(properties.showSequenceNumbers)) {
-    var words = formatWords(arguments);
-    if (words) {
-      writeWords("/", "N" + sequenceNumber, words);
-      sequenceNumber += getProperty(properties.sequenceNumberIncrement);
-    }
-  } else {
-    writeWords2("/", arguments);
-  }
+  writeWords2("/", arguments);
 }
 
 function formatComment(text) {
@@ -762,8 +724,6 @@ function onOpen() {
   }
 
   gRotationModal.format(69); // Default to G69 Rotation Off
-
-  sequenceNumber = getProperty(properties.sequenceNumberStart);
 
   if (!getProperty(properties.separateWordsWithSpace)) {
     setWordSeparator("");
