@@ -183,14 +183,6 @@ groupDefinitions = {
 
 properties = {
   // Post Processor Features
-  onlyPostFirstPatternedInstance: {
-    group: "postControl",
-    title: "Only post first patterned instance",
-    description: "Only post the first of any encountered patterned operation.",
-    type: "boolean",
-    value: false,
-    scope: "post",
-  },
   enableMachiningModes: {
     group: "postControl",
     title: "Enable machining modes defined per operation",
@@ -809,8 +801,6 @@ function onOpen() {
   }
 
   onCommand(COMMAND_START_CHIP_TRANSPORT);
-
-  _.forEach(_.allSections(), registerSection);
 }
 
 function onComment(message) {
@@ -1286,46 +1276,6 @@ function writeSectionSummary() {
   _.forEach(summary, function (s) { writeln(s); });
 }
 
-var patternState = {
-  knownPatterns: {},
-  skippedSections: {},
-};
-
-function registerSection(section) {
-  if (section.isPatterned() && getProperty(properties.onlyPostFirstPatternedInstance)) {
-    if (patternState.knownPatterns[section.getPatternId()]) {
-      patternState.skippedSections[section.getId()] = true;
-    }
-    patternState.knownPatterns[section.getPatternId()] = true;
-  }
-}
-
-function skippingSection(section) {
-  section = section || currentSection;
-  return !!patternState.skippedSections[section.getId()];
-}
-
-function getNextNonSkippedSection() {
-  return _.find(_.sectionsAfter(currentSection), function (section) {
-    return !skippingSection(section);
-  });
-}
-
-function hasNextNonSkippedSection() {
-  return !!getNextNonSkippedSection();
-}
-
-function getPreviousNonSkippedSection() {
-  var previousSections = _.sectionsBefore(currentSection);
-  return _.find(_.reverse(previousSections), function (section) {
-    return !skippingSection(section);
-  });
-}
-
-function hasPreviousNonSkippedSection() {
-  return !!getPreviousNonSkippedSection();
-}
-
 var MACHINING_MODES = {
   auto:    gFormat.format(61.1),
   P0:      gFormat.format(61.1) + " P0",
@@ -1453,12 +1403,10 @@ function writeToolCall(tool) {
 }
 
 function onSection() {
-  if (skippingSection()) return skipRemainingSection();
-
   retracted = false;
   prepositionedXY = false;
 
-  var previousSection = getPreviousNonSkippedSection();
+  var previousSection = isFirstSection() ? undefined : getPreviousSection();
 
   var insertToolCall = (
     !previousSection ||
@@ -2382,7 +2330,7 @@ function getProbingArguments(cycle, updateWCS) {
   var outputWCSCode = updateWCS && currentSection.strategy == "probe";
   if (outputWCSCode) {
     validate(probeOutputWorkOffset <= 99, "Work offset is out of range.");
-    var nextWorkOffset = hasNextNonSkippedSection() ? getNextNonSkippedSection().workOffset == 0 ? 1 : getNextNonSkippedSection().workOffset : -1;
+    var nextWorkOffset = hasNextSection() ? getNextSection().workOffset == 0 ? 1 : getNextSection().workOffset : -1;
     if (probeOutputWorkOffset == nextWorkOffset) {
       // NOTE: Can't figure out why this was needed but it causes a lot of seemingly unnecessary
       // retractions/etc. Getting rid of it.
@@ -2716,10 +2664,6 @@ function onCommand(command) {
 }
 
 function onSectionEnd() {
-  if (skippingSection()) {
-    return;
-  }
-
   if (getProperty(properties.enableMachiningModes)) {
     usingHighSpeedMode() && disableHighSpeedMode();
   }
@@ -2736,7 +2680,7 @@ function onSectionEnd() {
 
   // Run break control on last section or if the tool is changing
   var tool = currentSection.getTool();
-  var nextSection = getNextNonSkippedSection();
+  var nextSection = getNextSection();
   var nextToolNumber = nextSection && nextSection.getTool().number;
   if (tool.getBreakControl() && (isLastSection() || tool.number !== nextToolNumber)) {
     onCommand(COMMAND_BREAK_CONTROL);
@@ -2752,7 +2696,7 @@ function onSectionEnd() {
   }
 
   if (isProbeOperation()) {
-    if (!hasNextNonSkippedSection() || getNextNonSkippedSection().getTool().type !== TOOL_PROBE) {
+    if (!hasNextSection() || getNextSection().getTool().type !== TOOL_PROBE) {
       onCommand(COMMAND_PROBE_OFF);
     }
 
