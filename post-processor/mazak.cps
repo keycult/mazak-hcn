@@ -1220,20 +1220,15 @@ function onParameter(name, value) {
 }
 
 function writeSectionSummary() {
-  var summary = [];
   var sectionNumber = parseInt(currentSection.getId(), 10) + 1;
+  var firstLine = "Section" + sectionNumber + " - " + formatWorkOffset(currentSection.workOffset);
 
   if (hasParameter("operation-comment")) {
-    summary.push(formatComment(
-      "Section " + sectionNumber + " - " + getParameter("operation-comment")
-    ));
-  } else {
-    summary.push(formatComment("Section " + sectionNumber));
+    firstLine += " - " + getParameter("operation-comment");
   }
 
-  summary.push(formatComment(formatToolForSummary(currentSection.getTool())));
-
-  _.forEach(summary, function (s) { writeln(s); });
+  writeComment(firstLine);
+  writeComment(formatToolForSummary(currentSection.getTool()));
 }
 
 var MACHINING_MODES = {
@@ -1428,12 +1423,7 @@ function onSection() {
     }
     forceWorkPlane();
 
-    if (workOffset > 6) {
-      var code = workOffset - 6;
-      writeBlock(gFormat.format(54.1), "P" + code);
-    } else {
-      writeBlock(gFormat.format(53 + workOffset));
-    }
+    writeBlock(formatWorkOffset(workOffset));
 
     currentWorkOffset = workOffset;
   }
