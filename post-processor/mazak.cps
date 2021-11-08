@@ -191,14 +191,6 @@ properties = {
     value: true,
     scope: "post",
   },
-  // useSubprograms: {
-  //   group: "postControl",
-  //   title: "Output local subprograms",
-  //   description: "Output operations as local subprograms, sharing subprograms between pattern instances if possible.",
-  //   type: "boolean",
-  //   value: false,
-  //   scope: "post",
-  // },
 
   // Program Utilities
   ncPassThrough: {
@@ -546,6 +538,14 @@ function formatComment(text) {
 
 function writeComment(text) {
   writeln(formatComment(text));
+}
+
+function formatWorkOffset(workOffset) {
+  if (workOffset > 6) {
+    return gFormat.format(54.1) + " P" + (workOffset - 6);
+  } else {
+    return gFormat.format(53 + workOffset);
+  }
 }
 
 function formatToolForSummary(tool, zRanges) {
@@ -1103,110 +1103,6 @@ function getWorkPlaneMachineABC(workPlane, _setWorkPlane, rotate) {
   return abc;
 }
 
-var spState = {
-  programs: [],
-  lastSubprogram: 0,
-  knownPatterns: {},
-  skippingPatternInstance: false,
-};
-
-function subprogramDefine() {
-  return undefined;
-  if (!getProperty(properties.useSubprograms)) return undefined;
-
-  spState.skippingPatternInstance = false;
-
-  var nextSubprogram = spState.lastSubprogram + 1;
-
-  if (currentSection.isPatterned() && subprogramCanBeShared(currentSection)) {
-    var pattern = currentSection.getPatternId();
-    // If we've seen this pattern, skip the section and exit early
-    if (spState.knownPatterns[pattern]) {
-      writeBlock(mFormat.format(98), "P" + oFormat4.format(spState.knownPatterns[pattern]));
-      spState.skippingPatternInstance = true;
-      skipRemainingSection();
-      setCurrentPosition(getFramePosition(currentSection.getFinalPosition()));
-      return undefined;
-    } else {
-      spState.knownPatterns[pattern] = nextSubprogram;
-    }
-  }
-
-  writeBlock(mFormat.format(98), "P" + oFormat4.format(nextSubprogram));
-  subprogramStart(nextSubprogram);
-
-  spState.lastSubprogram = nextSubprogram;
-
-  return undefined;
-}
-
-function subprogramStart(subprogramNo) {
-  redirectToBuffer();
-
-  var comment = hasParameter("operation-comment") ? getParameter("operation-comment") : "";
-  writeln(
-    "O" + oFormat4.format(subprogramNo) +
-    conditional(comment, " " + formatComment(comment))
-  );
-  gPlaneModal.reset();
-  gMotionModal.reset();
-}
-
-function subprogramEnd() {
-  writeBlock(mFormat.format(99));
-  spState.programs.push(getRedirectionBuffer());
-  forceAny();
-  closeRedirection();
-}
-
-// Subprograms can be shared amongst pattern instances with identical movement, identified as those with identical initial & final positions and bounding boxes.
-function subprogramCanBeShared(section) {
-  var patternId = section.getPatternId();
-
-  if (!subprogramCanBeShared.cache.hasOwnProperty(patternId)) {
-    var positionAndBox = positionAndBoxFor(section);
-    var patternInstances = _.filter(_.allSections(), function (s) {
-      return s.isPatterned() && s.getPatternId() === patternId;
-    });
-
-    subprogramCanBeShared.cache[patternId] = _.every(patternInstances, function (inst) {
-      var instPositionAndBox = positionAndBoxFor(inst);
-      return (
-        areSpatialBoxesSame(positionAndBox[0], instPositionAndBox[0]) &&
-        areSpatialBoxesSame(positionAndBox[1], instPositionAndBox[1])
-      );
-    });
-  }
-
-  return subprogramCanBeShared.cache[patternId];
-}
-subprogramCanBeShared.cache = {};
-
-function positionAndBoxFor(section) {
-  var sectionPosition = [
-    getFramePosition(section.getInitialPosition()),
-    getFramePosition(section.getFinalPosition()),
-  ];
-  var sectionBox = [
-    getFramePosition(section.getBoundingBox()[0]),
-    getFramePosition(section.getBoundingBox()[1]),
-  ];
-
-  return [ sectionPosition, sectionBox ];
-}
-
-/** Returns true if the spatial vectors are significantly different. */
-function areSpatialVectorsDifferent(_vector1, _vector2) {
-  return (xyzFormat.getResultingValue(_vector1.x) != xyzFormat.getResultingValue(_vector2.x)) ||
-    (xyzFormat.getResultingValue(_vector1.y) != xyzFormat.getResultingValue(_vector2.y)) ||
-    (xyzFormat.getResultingValue(_vector1.z) != xyzFormat.getResultingValue(_vector2.z));
-}
-
-/** Returns true if the spatial boxes are same. */
-function areSpatialBoxesSame(_box1, _box2) {
-  return !areSpatialVectorsDifferent(_box1[0], _box2[0]) && !areSpatialVectorsDifferent(_box1[1], _box2[1]);
-}
-
 function printProbeResults() {
   return currentSection.getParameter("printResults", 0) == 1;
 }
@@ -1567,8 +1463,6 @@ function onSection() {
   } else {
     activeMovements = undefined;
   }
-
-  subprogramDefine();
 
   return undefined;
 }
@@ -2637,10 +2531,6 @@ function onSectionEnd() {
     onCommand(COMMAND_BREAK_CONTROL);
   }
 
-  if (isRedirecting() && !spState.skippingPatternInstance) {
-    subprogramEnd();
-  }
-
   // the code below gets the machine angles from previous operation.  closestABC must also be set to true
   if (currentSection.isMultiAxis() && currentSection.isOptimizedForMachine()) {
     currentMachineABC = currentSection.getFinalToolAxisABC();
@@ -2928,11 +2818,6 @@ function onClose() {
     writeBlock(mFormat.format(99));
   } else {
     writeBlock(mFormat.format(30));
-  }
-
-  if (spState.programs.length > 0) {
-    writeln("");
-    write(spState.programs.join("\n"));
   }
 }
 
