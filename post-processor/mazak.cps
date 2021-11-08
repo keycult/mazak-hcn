@@ -2664,6 +2664,10 @@ function onCommand(command) {
 }
 
 function onSectionEnd() {
+  var tool = currentSection.getTool();
+  var nextSection = getNextSection();
+  var nextTool = nextSection && nextSection.getTool();
+
   if (getProperty(properties.enableMachiningModes)) {
     usingHighSpeedMode() && disableHighSpeedMode();
   }
@@ -2679,10 +2683,7 @@ function onSectionEnd() {
   writeBlock(gPlaneModal.format(17));
 
   // Run break control on last section or if the tool is changing
-  var tool = currentSection.getTool();
-  var nextSection = getNextSection();
-  var nextToolNumber = nextSection && nextSection.getTool().number;
-  if (tool.getBreakControl() && (isLastSection() || tool.number !== nextToolNumber)) {
+  if (tool.getBreakControl() && (isLastSection() || tool.number !== nextTool.number)) {
     onCommand(COMMAND_BREAK_CONTROL);
   }
 
@@ -2696,7 +2697,7 @@ function onSectionEnd() {
   }
 
   if (isProbeOperation()) {
-    if (!hasNextSection() || getNextSection().getTool().type !== TOOL_PROBE) {
+    if (!nextSection || nextTool.type !== TOOL_PROBE || nextSection.workOffset !== currentSection.workOffset) {
       onCommand(COMMAND_PROBE_OFF);
     }
 
