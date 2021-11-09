@@ -35,12 +35,6 @@ These properties provide high-level control over the way the post processor func
 
 | Property | Type | Default |
 | :--- | :---: | :---: |
-| **Only post first patterned instance** | Checkbox | ☐ |
-
-Completely suppresses output of pattern instances after the first instance. This applies to normal patterns (linear/circular/etc.) but also to Multiple WCS Offsets, which is why this property exists. NC Programs currently allows you to limit output of normal pattern types to only the first instance to, e.g., prove out a program, but that feature does not apply to Multiple WCS Offsets, which are created at the Setup level. This property allows you to only post out code only for the first WCS Offset.
-
-| Property | Type | Default |
-| :--- | :---: | :---: |
 | **Enable machining modes defined per operation** | Checkbox | ☑ |
 
 Enables the use of per-operation machining mode properties to set `G61.1` Geometry Compensation, `G5 P2` High Speed Machining mode, etc. Please note that these per-operation control fields will still be present in the Post Properties tab of each operation dialogue, but nothing will be output unless this property is enabled. See the **Operation Properties** section for more.
@@ -51,7 +45,6 @@ These properties control comment documentation that is output with posted code.
 
 | Property | Type | Default | Description |
 | :--- | :---: | :---: | :--- |
-| **Write machine** | Checkbox | ☑ | Output machine configuration in a header comment near the top of the code |
 | **Write tool list** | Checkbox | ☑ | Output a tool list in a header comment near the top of the code |
 | **Write operation notes** | Checkbox | ☑ | Output operation notes as comments near the beginning of each code section |
 | **Write tool comments** | Checkbox | ☑ | Output tool comments after each tool change line |
@@ -62,9 +55,6 @@ These properties control the formatting of posted code.
 
 | Property | Type | Default | Description |
 | :--- | :---: | :---: | :--- |
-| **Sequence numbers: Enable** | Checkbox | ☐ | Output sequence numbers for each block |
-| **Sequence numbers: Start at** | Integer | 10 | Sequence numbers will begin at this value |
-| **Sequence numbers: Increment by** | Integer | 5 | Sequence numbers will increment on each line by this value |
 | **Separate words with space** | Checkbox | ☑ | Separate words with spaces |
 
 ### General
