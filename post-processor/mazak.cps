@@ -174,14 +174,25 @@ allowedCircularPlanes = undefined; // allow any circular motion
 probeMultipleFeatures = true;
 
 groupDefinitions = {
-  postControl: { title: "Post Processor Features", order: 0 },
-  utilities: { title: "Program Utilities", order: 1 },
-  controlFeatures: { title: "Control Features", order: 2 },
-  documentation: { title: "Documentation", order: 3, collapsed: true },
-  formatting: { title: "Formatting", order: 4, collapsed: true },
+  keycult: { title: "Keycult", order: 0 },
+  postControl: { title: "Post Processor Features", order: 1 },
+  utilities: { title: "Program Utilities", order: 2 },
+  controlFeatures: { title: "Control Features", order: 3 },
+  documentation: { title: "Documentation", order: 4, collapsed: true },
+  formatting: { title: "Formatting", order: 5, collapsed: true },
 };
 
 properties = {
+  // Keycult-specific Features
+  blockSkipControls: {
+    group: "keycult",
+    title: "Enable block-skip controls",
+    description: "Control which pallet stations programs run on with block skip",
+    type: "boolean",
+    value: true,
+    scope: "post",
+  },
+
   // Post Processor Features
   enableMachiningModes: {
     group: "postControl",
@@ -250,14 +261,6 @@ properties = {
     group: "utilities",
     title: "Ensure tool length",
     description: "Ensure that the length of the tool in the spindle is greater than or equal to the programmed length",
-    type: "boolean",
-    value: true,
-    scope: "post",
-  },
-  palletLoop: {
-    group: "utilities",
-    title: "Pallet/program loop with Block Skip 9",
-    description: "Enable block skip 9 to swap pallet and restart at end of cycle program",
     type: "boolean",
     value: true,
     scope: "post",
@@ -506,6 +509,7 @@ var currentFeedId;
 var maximumCircularRadiiDifference = toPreciseUnit(0.005, MM);
 var retracted = false; // specifies that the tool has been retracted to the safe plane
 var prepositionedXY = false;
+var blockSkipController;
 
 // Machine configuration
 var compensateToolLength = false; // add the tool length to the pivot distance for nonTCP rotary heads
@@ -603,16 +607,20 @@ function writeMachineSummary() {
 function writePostFeatures() {
   writeComment("Enabled Program Features:");
 
-  if (getProperty(properties.palletLoop)) {
-    writeComment("  Loop program: Enable Block Skip 9 to swap pallets and continue");
-  }
-
   if (getProperty(properties.breakDetectEnable)) {
     writeComment("  Tool breakage detection");
   }
 
   if (getProperty(properties.ensureToolLength)) {
     writeComment("  Ensure tool length is greater than length in CAM");
+  }
+
+  if (getProperty(properties.blockSkipControls)) {
+    writeComment("  Block skip controls:");
+    writeComment("    Block skip 1 - Enable to run pallet side 1");
+    writeComment("    Block skip 2 - Enable to run pallet side 2");
+    writeComment("    Block skip 3 - Enable to run pallet side 3");
+    writeComment("    Block skip 9 - Enable to swap to other pallet at end and continue operation");
   }
 }
 
@@ -711,6 +719,8 @@ function writeSafeStartModals() {
 }
 
 function onOpen() {
+  blockSkipController = new BlockSkipController();
+
   receivedMachineConfiguration =
     typeof machineConfiguration.isReceived === "function" ?
     machineConfiguration.isReceived() :
@@ -742,6 +752,8 @@ function onOpen() {
       error("Using multiple work offsets is not possible if the initial work offset is 0.");
     }
   }
+
+  blockSkipController.writeBlockSkipCheck();
 
   //Probing Surface Inspection
   if (typeof inspectionWriteVariables == "function") {
@@ -1258,11 +1270,12 @@ function onSection() {
   prepositionedXY = false;
 
   var previousSection = isFirstSection() ? undefined : getPreviousSection();
+  var previousTool = previousSection && previousSection.getTool();
 
   var insertToolCall = (
     !previousSection ||
     currentSection.getForceToolChange && currentSection.getForceToolChange() ||
-    tool.number !== previousSection.getTool().number
+    tool.number !== previousTool.number
   );
 
   var newWorkOffset = (
@@ -1294,6 +1307,10 @@ function onSection() {
         }
       }
     }
+  }
+
+  if (getProperty(properties.blockSkipControls)) {
+    blockSkipController.writeSkip(currentSection.workOffset);
   }
 
   // Force work offset when changing tool
@@ -2520,11 +2537,25 @@ function onSectionEnd() {
     inspectionProcessSectionEnd();
   }
 
+  if (isProbeOperation()) {
+    if (!nextSection || nextTool.type !== TOOL_PROBE || nextSection.workOffset !== currentSection.workOffset) {
+      onCommand(COMMAND_PROBE_OFF);
+    }
+
+    if (probeVariables.probeAngleMethod != "G68") {
+      setProbeAngle(); // output probe angle rotations if required
+    }
+  }
+
   if (currentSection.isMultiAxis()) {
     writeBlock(gFeedModeModal.format(94)); // inverse time feed off
   }
 
   writeBlock(gPlaneModal.format(17));
+
+  if (getProperty(properties.blockSkipControls)) {
+    blockSkipController.writeN(nextSection);
+  }
 
   // Run break control on last section or if the tool is changing
   if (tool.getBreakControl() && (isLastSection() || tool.number !== nextTool.number)) {
@@ -2534,16 +2565,6 @@ function onSectionEnd() {
   // the code below gets the machine angles from previous operation.  closestABC must also be set to true
   if (currentSection.isMultiAxis() && currentSection.isOptimizedForMachine()) {
     currentMachineABC = currentSection.getFinalToolAxisABC();
-  }
-
-  if (isProbeOperation()) {
-    if (!nextSection || nextTool.type !== TOOL_PROBE || nextSection.workOffset !== currentSection.workOffset) {
-      onCommand(COMMAND_PROBE_OFF);
-    }
-
-    if (probeVariables.probeAngleMethod != "G68") {
-      setProbeAngle(); // output probe angle rotations if required
-    }
   }
 
   forceAny();
@@ -2812,7 +2833,7 @@ function onClose() {
   onImpliedCommand(COMMAND_END);
   onImpliedCommand(COMMAND_STOP_SPINDLE);
 
-  if (getProperty(properties.palletLoop)) {
+  if (getProperty(properties.blockSkipControls)) {
     writeBlock("/9", mFormat.format(30));
     writeBlock(gFormat.format(65), "<SWAP_PALLET>");
     writeBlock(mFormat.format(99));
@@ -2869,4 +2890,56 @@ function formatPostDateTime(d) {
     (d.getMinutes() < 10 ? '0' + d.getMinutes() : d.getMinutes()) +
     (d.getHours() >= 12 ? "pm" : "am")
   );
+}
+
+var BLOCK_SKIP_TO_WCS = {
+  1: [7, 10], // Side 1, G54.1 P1 & P4
+  2: [8, 11], // Side 2, G54.1 P2 & P5
+  3: [9, 12], // Side 3, G54.1 P3 & P6
+};
+
+function BlockSkipController() {
+  this.currentN = 90000;
+  this.currentOffset = undefined;
+  this.wcsToBlockSkip = {};
+
+  var that = this;
+  for (var blockSkip in BLOCK_SKIP_TO_WCS) {
+    _.forEach(BLOCK_SKIP_TO_WCS[blockSkip], function (offset) {
+      that.wcsToBlockSkip[offset] = blockSkip;
+    });
+  }
+}
+
+BlockSkipController.prototype.nextN = function () {
+  return ++this.currentN;
+}
+
+BlockSkipController.prototype.writeSkip = function (offset) {
+  if (offset !== this.currentOffset) {
+    this.currentOffset = offset;
+    writeln("/" + this.wcsToBlockSkip[offset] + " GOTO " + this.nextN());
+  }
+}
+
+BlockSkipController.prototype.writeN = function (nextSection) {
+  if (!nextSection || nextSection.workOffset !== this.currentOffset) {
+    writeln("N" + this.currentN);
+  }
+}
+
+BlockSkipController.prototype.writeBlockSkipCheck = function () {
+  writeln("N89001 (CHECK BLOCK SKIP 1)");
+  writeln("/1 GOTO 89002");
+  writeln("GOTO 89999");
+  writeln("N89002 (CHECK BLOCK SKIP 2)");
+  writeln("/2 GOTO 89003");
+  writeln("GOTO 89999");
+  writeln("N89003 (CHECK BLOCK SKIP 3)");
+  writeln("/3 GOTO 89004");
+  writeln("GOTO 89999");
+  writeln("N89004 (NO BLOCK SKIP DETECTED)");
+  writeln("#3000 = 21(*ERR*NO*BLOCK*SKIP*DETECTED)");
+  writeln("N89999 (BLOCK SKIP DETECTED)");
+  writeln("");
 }
