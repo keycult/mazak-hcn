@@ -2540,16 +2540,6 @@ function onSectionEnd() {
     inspectionProcessSectionEnd();
   }
 
-  if (isProbeOperation()) {
-    if (!nextSection || nextTool.type !== TOOL_PROBE || nextSection.workOffset !== currentSection.workOffset) {
-      onCommand(COMMAND_PROBE_OFF);
-    }
-
-    if (probeVariables.probeAngleMethod != "G68") {
-      setProbeAngle(); // output probe angle rotations if required
-    }
-  }
-
   if (currentSection.isMultiAxis()) {
     writeBlock(gFeedModeModal.format(94)); // inverse time feed off
   }
@@ -2558,6 +2548,16 @@ function onSectionEnd() {
 
   if (getProperty(properties.blockSkipControls)) {
     blockSkipController.writeN(nextSection);
+  }
+
+  if (isProbeOperation()) {
+    if (!nextSection || nextTool.type !== TOOL_PROBE) {
+      onCommand(COMMAND_PROBE_OFF);
+    }
+
+    if (probeVariables.probeAngleMethod != "G68") {
+      setProbeAngle(); // output probe angle rotations if required
+    }
   }
 
   // Run break control on last section or if the tool is changing
