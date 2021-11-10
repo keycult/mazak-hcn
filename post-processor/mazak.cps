@@ -1309,10 +1309,6 @@ function onSection() {
     }
   }
 
-  if (getProperty(properties.blockSkipControls)) {
-    blockSkipController.writeSkip(currentSection.workOffset);
-  }
-
   // Force work offset when changing tool
   if (insertToolCall) {
     currentWorkOffset = undefined;
@@ -1334,11 +1330,6 @@ function onSection() {
     if (cancelTiltFirst) {
       cancelWorkPlane();
     }
-    forceWorkPlane();
-
-    writeBlock(formatWorkOffset(workOffset));
-
-    currentWorkOffset = workOffset;
   }
 
   if (insertToolCall) {
@@ -1391,6 +1382,18 @@ function onSection() {
     _.apply(writeBlock, [gFormat.format(117)].concat(auxCodes));
   } else {
     _.forEach(auxCodes, function (code) { writeBlock(code) });
+  }
+
+  if (workOffset !== currentWorkOffset) {
+    forceWorkPlane();
+
+    writeBlock(formatWorkOffset(workOffset));
+
+    currentWorkOffset = workOffset;
+  }
+
+  if (getProperty(properties.blockSkipControls)) {
+    blockSkipController.writeSkip(currentSection.workOffset);
   }
 
   forceXYZ();
