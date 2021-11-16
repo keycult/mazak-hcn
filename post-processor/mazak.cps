@@ -433,10 +433,10 @@ var coolants = [
   { id: COOLANT_MIST,               codes: [7] },
   { id: COOLANT_THROUGH_TOOL,       codes: [131] },
   { id: COOLANT_FLOOD_THROUGH_TOOL, codes: [8, 131] },
-  { id: COOLANT_AIR,                codes: [52] },
   { id: COOLANT_AIR_THROUGH_TOOL,   codes: [132] },
 
   // Currently unsupported
+  // { id: COOLANT_AIR },
   // { id: COOLANT_SUCTION },
   // { id: COOLANT_FLOOD_MIST },
 ];
