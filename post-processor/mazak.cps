@@ -7,7 +7,9 @@
   Subsequent additions by Zach Allaun & Keycult.
 */
 
-// ATTENTION: parameter F86 bit 6 must be on for G43.4
+// ATTENTION:
+//   Parameter F86.6 must be on for G43.4
+//   Parameter RB8.2 must be on for spiral chip conveyor
 
 // include("post-utilities.cps");
 !(function (global) {
@@ -2519,6 +2521,9 @@ function onCommand(command) {
     return;
 
   case COMMAND_START_CHIP_TRANSPORT:
+    writeBlock(mFormat.format(43));
+    return;
+
   case COMMAND_STOP_CHIP_TRANSPORT:
   case COMMAND_TOOL_MEASURE:
   case COMMAND_UNLOCK_MULTI_AXIS:
