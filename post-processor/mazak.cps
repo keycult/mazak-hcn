@@ -337,6 +337,14 @@ properties = {
     value: 200,
     scope: "post",
   },
+  incrementPartCount: {
+    group: "controlFeatures",
+    title: "Increment part count",
+    description: "Increments the part counter at end of program",
+    type: "boolean",
+    value: true,
+    scope: "post",
+  },
 
   // Documentation
   writeTools: {
@@ -2836,10 +2844,20 @@ function onClose() {
   onImpliedCommand(COMMAND_END);
   onImpliedCommand(COMMAND_STOP_SPINDLE);
 
+  if (getProperty(properties.incrementPartCount)) {
+    writeBlock("#3901 = #3901 + 1 (Increment part counter)");
+  }
+
   if (getProperty(properties.blockSkipControls)) {
-    writeBlock("/9", mFormat.format(30));
-    writeBlock(gFormat.format(65), "<SWAP_PALLET>");
-    writeBlock(mFormat.format(99));
+    writeBlock("IF [#3902 GT 0.] THEN (Desired count set)");
+    writeBlock("  IF [#3901 GE #3902] THEN (Desired count reached)");
+    writeBlock("    M30");
+    writeBlock("  ENDIF");
+    writeBlock("ELSE");
+    writeBlock("  /9", mFormat.format(30));
+    writeBlock(" ", gFormat.format(65), "<SWAP_PALLET>");
+    writeBlock(" ", mFormat.format(99));
+    writeBlock("ENDIF");
   } else {
     writeBlock(mFormat.format(30));
   }
