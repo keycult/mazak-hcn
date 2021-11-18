@@ -188,10 +188,18 @@ properties = {
   // Keycult-specific Features
   blockSkipControls: {
     group: "keycult",
-    title: "Enable block-skip controls",
+    title: "Block skip controls: Enable",
     description: "Control which pallet stations programs run on with block skip",
     type: "boolean",
     value: true,
+    scope: "post",
+  },
+  incPartsCount: {
+    group: "keycult",
+    title: "Block skip controls: Part count",
+    description: "Increment part count for each skip used",
+    type: "boolean",
+    value: false,
     scope: "post",
   },
 
@@ -337,14 +345,6 @@ properties = {
     description: "Controls the return speed as a percentage of tapping speed",
     type: "integer",
     value: 200,
-    scope: "post",
-  },
-  incrementPartCount: {
-    group: "controlFeatures",
-    title: "Increment part count",
-    description: "Increments the part counter at end of program",
-    type: "boolean",
-    value: true,
     scope: "post",
   },
 
@@ -622,15 +622,15 @@ function writePostFeatures() {
   }
 
   if (getProperty(properties.ensureToolLength)) {
-    writeComment("  Ensure tool length is greater than length in CAM");
+    writeComment("  Ensure tool len is greater than CAM len");
   }
 
   if (getProperty(properties.blockSkipControls)) {
     writeComment("  Block skip controls:");
-    writeComment("    Block skip 1 - Enable to run pallet side 1");
-    writeComment("    Block skip 2 - Enable to run pallet side 2");
-    writeComment("    Block skip 3 - Enable to run pallet side 3");
-    writeComment("    Block skip 9 - Enable to swap to other pallet at end and continue operation");
+    writeComment("    Skip 1 - Run pallet side 1");
+    writeComment("    Skip 2 - Run pallet side 2");
+    writeComment("    Skip 3 - Run pallet side 3");
+    writeComment("    Skip 9 - Swap to other pallet at end and continue");
   }
 }
 
@@ -763,7 +763,7 @@ function onOpen() {
     }
   }
 
-  blockSkipController.writeBlockSkipCheck();
+  blockSkipController.writeBlockSkipInit();
 
   //Probing Surface Inspection
   if (typeof inspectionWriteVariables == "function") {
@@ -1132,9 +1132,15 @@ function printProbeResults() {
 var probeOutputWorkOffset = 1;
 
 function onParameter(name, value) {
-  if (name == "probe-output-work-offset") {
+  switch (name) {
+  case "probe-output-work-offset":
     probeOutputWorkOffset = (value > 0) ? value : 1;
+    return;
   }
+}
+
+function onManualNC(command, value) {
+  return expandManualNC(command, value);
 }
 
 function writeSectionSummary() {
@@ -2849,20 +2855,21 @@ function onClose() {
   onImpliedCommand(COMMAND_END);
   onImpliedCommand(COMMAND_STOP_SPINDLE);
 
-  if (getProperty(properties.incrementPartCount)) {
-    writeBlock("#3901 = #3901 + 1 (Increment part counter)");
-  }
-
   if (getProperty(properties.blockSkipControls)) {
-    writeBlock("IF [#3902 GT 0.] THEN (Desired count set)");
-    writeBlock("  IF [#3901 GE #3902] THEN (Desired count reached)");
-    writeBlock("    M30");
-    writeBlock("  ENDIF");
-    writeBlock("ELSE");
-    writeBlock("  /9", mFormat.format(30));
-    writeBlock(" ", gFormat.format(65), "<SWAP_PALLET>");
-    writeBlock(" ", mFormat.format(99));
-    writeBlock("ENDIF");
+    writeln("");
+    writeln("(Check part count before pallet swap)");
+    if (getProperty(properties.incPartsCount)) {
+      writeln("#3901 = #3901 + " + blockSkipController.partsActiveVar);
+    }
+    writeln("IF [#3902 GT 0.] THEN (Desired count set)");
+    writeln("  IF [#3901 GE #3902] THEN (Desired count reached)");
+    writeln("    M30");
+    writeln("  ENDIF");
+    writeln("ELSE");
+    writeln("  /9 M30");
+    writeln("  G65 <SWAP_PALLET>");
+    writeln("  M99");
+    writeln("ENDIF");
   } else {
     writeBlock(mFormat.format(30));
   }
@@ -2929,6 +2936,9 @@ function BlockSkipController() {
   this.currentOffset = undefined;
   this.wcsToBlockSkip = {};
 
+  this.partsActiveVar = "#19";
+  this._skipsUsed = {};
+
   var that = this;
   for (var blockSkip in BLOCK_SKIP_TO_WCS) {
     _.forEach(BLOCK_SKIP_TO_WCS[blockSkip], function (offset) {
@@ -2942,9 +2952,16 @@ BlockSkipController.prototype.nextN = function () {
 }
 
 BlockSkipController.prototype.writeSkip = function (offset) {
+  var blockSkip = this.wcsToBlockSkip[offset];
+
   if (offset !== this.currentOffset) {
     this.currentOffset = offset;
-    writeln("/" + this.wcsToBlockSkip[offset] + " GOTO " + this.nextN());
+    writeln("/" + blockSkip + " GOTO " + this.nextN());
+  }
+
+  if (!this._skipsUsed[blockSkip]) {
+    this._skipsUsed[blockSkip] = true;
+    writeln(this.partsActiveVar + " = " + this.partsActiveVar + " + 1");
   }
 }
 
@@ -2954,7 +2971,7 @@ BlockSkipController.prototype.writeN = function (nextSection) {
   }
 }
 
-BlockSkipController.prototype.writeBlockSkipCheck = function () {
+BlockSkipController.prototype.writeBlockSkipInit = function () {
   writeln("N89001 (CHECK BLOCK SKIP 1)");
   writeln("/1 GOTO 89002");
   writeln("GOTO 89999");
@@ -2967,5 +2984,5 @@ BlockSkipController.prototype.writeBlockSkipCheck = function () {
   writeln("N89004 (NO BLOCK SKIP DETECTED)");
   writeln("#3000 = 21(*ERR*NO*BLOCK*SKIP*DETECTED)");
   writeln("N89999 (BLOCK SKIP DETECTED)");
-  writeln("");
+  writeln(this.partsActiveVar + " = 0 (N PARTS)");
 }
