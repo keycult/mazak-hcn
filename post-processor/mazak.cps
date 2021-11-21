@@ -2861,15 +2861,15 @@ function onClose() {
     if (getProperty(properties.incPartsCount)) {
       writeln("#3901 = #3901 + " + blockSkipController.partsActiveVar);
     }
-    writeln("IF [#3902 GT 0.] THEN (Desired count set)");
-    writeln("  IF [#3901 GE #3902] THEN (Desired count reached)");
-    writeln("    M30");
-    writeln("  ENDIF");
-    writeln("ELSE");
-    writeln("  /9 M30");
-    writeln("  G65 <SWAP_PALLET>");
-    writeln("  M99");
+    writeln("IF [#3902 EQ 0.] GOTO 99999");
+    writeln("IF [#3901 GE #3902] THEN");
+    writeln("  M30");
     writeln("ENDIF");
+    writeln("");
+    writeln("N99999");
+    writeln("/9 M30");
+    writeln("G65 <SWAP_PALLET>");
+    writeln("M99");
   } else {
     writeBlock(mFormat.format(30));
   }
