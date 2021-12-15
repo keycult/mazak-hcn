@@ -347,6 +347,14 @@ properties = {
     value: 200,
     scope: "post",
   },
+  niagaraCoolant: {
+    group: "controlFeatures",
+    title: "Niagara coolant at end of program (seconds)",
+    description: "Number of seconds to run Niagara coolant (zero to disable)",
+    type: "integer",
+    value: 0,
+    scope: "post",
+  },
 
   // Documentation
   writeTools: {
@@ -2850,6 +2858,14 @@ function onClose() {
 
   if (getProperty(properties.enableMistCollector)) {
     writeBlock(mFormat.format(614));
+  }
+
+  if (getProperty(properties.niagaraCoolant) > 0) {
+    writeln("");
+    writeComment("Niagara coolant");
+    writeBlock(mFormat.format(130));
+    writeBlock(gFormat.format(4), "X" + secFormat.format(getProperty(properties.niagaraCoolant)));
+    writeBlock(mFormat.format(9));
   }
 
   onImpliedCommand(COMMAND_END);
