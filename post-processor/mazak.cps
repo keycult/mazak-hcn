@@ -174,6 +174,7 @@ maximumCircularSweep = toRad(180);
 allowHelicalMoves = true;
 allowedCircularPlanes = undefined; // allow any circular motion
 probeMultipleFeatures = true;
+mapWorkOrigin = false;
 
 groupDefinitions = {
   keycult: { title: "Keycult", order: 0 },
@@ -433,6 +434,20 @@ properties = {
     value: "107",
     scope: "operation",
   },
+  keycultSerialization: {
+    title: "Serialization: Enable",
+    description: "Warning: Don't use unless you understand the serialization macro",
+    type: "boolean",
+    value: false,
+    scope: "operation",
+  },
+  keycultSerializationMacroPassthrough: {
+    title: "Serialization: Macro passthrough",
+    description: "Warning: Don't use unless you understand the serialization macro",
+    type: "string",
+    value: "",
+    scope: "operation",
+  },
 };
 
 var coolantOffCodes = [9];
@@ -625,20 +640,28 @@ function writeMachineSummary() {
 function writePostFeatures() {
   writeComment("Enabled Program Features:");
 
+  var features = [];
+
   if (getProperty(properties.breakDetectEnable)) {
-    writeComment("  Tool breakage detection");
+    features.push("  Tool breakage detection");
   }
 
   if (getProperty(properties.ensureToolLength)) {
-    writeComment("  Ensure tool len is greater than CAM len");
+    features.push("  Ensure tool len is greater than CAM len");
   }
 
   if (getProperty(properties.blockSkipControls)) {
-    writeComment("  Block skip controls:");
-    writeComment("    Skip 1 - Run pallet side 1");
-    writeComment("    Skip 2 - Run pallet side 2");
-    writeComment("    Skip 3 - Run pallet side 3");
-    writeComment("    Skip 9 - Swap to other pallet at end and continue");
+    features.push("  Block skip controls:");
+    features.push("    Skip 1 - Run pallet side 1");
+    features.push("    Skip 2 - Run pallet side 2");
+    features.push("    Skip 3 - Run pallet side 3");
+    features.push("    Skip 9 - Swap to other pallet at end and continue");
+  }
+
+  if (features.length === 0) {
+    writeComment("  None");
+  } else {
+    _.forEach(features, writeComment);
   }
 }
 
@@ -771,7 +794,9 @@ function onOpen() {
     }
   }
 
-  blockSkipController.writeBlockSkipInit();
+  if (getProperty(properties.blockSkipControls)) {
+    blockSkipController.writeBlockSkipInit();
+  }
 
   //Probing Surface Inspection
   if (typeof inspectionWriteVariables == "function") {
@@ -1050,7 +1075,21 @@ function setWorkPlane(abc, initialPosition) {
     }
     if (abc.isNonZero()) {
       gRotationModal.reset();
-      writeBlock(gRotationModal.format(68.2), "X" + xyzFormat.format(0), "Y" + xyzFormat.format(0), "Z" + xyzFormat.format(0), "I" + abcFormat.format(abc.x), "J" + abcFormat.format(abc.y), "K" + abcFormat.format(abc.z)); // set frame
+      var xyz = { x: 0, y: 0, z: 0 };
+
+      if (!mapWorkOrigin) {
+        xyz = currentSection.getWorkOrigin();
+      }
+
+      writeBlock(
+        gRotationModal.format(68.2),
+        "X" + xyzFormat.format(xyz.x),
+        "Y" + xyzFormat.format(xyz.y),
+        "Z" + xyzFormat.format(xyz.z),
+        "I" + abcFormat.format(abc.x),
+        "J" + abcFormat.format(abc.y),
+        "K" + abcFormat.format(abc.z)
+      );
       if (!useABCPrepositioning) {
         writeBlock(gFormat.format(53.1)); // turn machine
       }
@@ -1508,7 +1547,26 @@ function onSection() {
     activeMovements = undefined;
   }
 
+  if (getProperty(properties.keycultSerialization, currentSection)) {
+    writeSerializationMacroCall(currentSection);
+    return skipRemainingSection();
+  }
+
   return undefined;
+}
+
+function writeSerializationMacroCall(section) {
+  var passThrough = getProperty(properties.keycultSerializationMacroPassthrough, section);
+  validate(passThrough, "Passthrough options required for serialization macro");
+
+  writeBlock(
+    gFormat.format(65),
+    "<Serialize-Qanelas-2mm>",
+    "I" + xyzFormat.format(0),
+    "J" + xyzFormat.format(0),
+    "K" + xyzFormat.format(0),
+    passThrough
+  );
 }
 
 function defineWorkPlane(_section, _setWorkPlane) {
