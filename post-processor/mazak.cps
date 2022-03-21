@@ -197,10 +197,18 @@ properties = {
   },
   incPartsCount: {
     group: "keycult",
-    title: "Block skip controls: Part count",
+    title: "Block skip controls: Enable part count",
     description: "Increment part count for each skip used",
     type: "boolean",
     value: false,
+    scope: "post",
+  },
+  incPartsCountBy: {
+    group: "keycult",
+    title: "Block skip controls: Part count",
+    description: "If enabled, increment by part count by this amount",
+    type: "integer",
+    value: 1,
     scope: "post",
   },
 
@@ -3053,7 +3061,6 @@ BlockSkipController.prototype.writeSkip = function (offset) {
 
   if (!this._skipsUsed[blockSkip]) {
     this._skipsUsed[blockSkip] = true;
-    writeln(this.partsActiveVar + " = " + this.partsActiveVar + " + 1");
   }
 }
 
@@ -3076,8 +3083,14 @@ BlockSkipController.prototype.writeBlockSkipInit = function () {
   writeln("G65 <SET_BSKIP_VARS> V900");
   writeln("IF [[#901 + #902 + #903] EQ 0] THEN")
   writeln("  #3000 = 21(*ERR*NO*BLOCK*SKIP*DETECTED)");
-  writeln("ENDIF")
-  writeln(this.partsActiveVar + " = 0 (N PARTS)");
+  writeln("ENDIF");
+  writeln("");
+
+  if (getProperty(properties.incPartsCount)) {
+    writeln("(Inc part count by this amount at end of program)");
+    writeln(this.partsActiveVar + " = [#901 + #902 + #903] * " + getProperty(properties.incPartsCountBy));
+    writeln("");
+  }
 }
 
 BlockSkipController.prototype.isEnabled = function () {
