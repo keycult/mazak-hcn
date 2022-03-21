@@ -650,11 +650,12 @@ function writePostFeatures() {
     features.push("  Ensure tool len is greater than CAM len");
   }
 
-  if (getProperty(properties.blockSkipControls)) {
+  if (blockSkipController.isEnabled()) {
     features.push("  Block skip controls:");
     features.push("    Skip 1 - Run pallet side 1");
     features.push("    Skip 2 - Run pallet side 2");
     features.push("    Skip 3 - Run pallet side 3");
+    features.push("    Skip 8 - Skip all probing operations");
     features.push("    Skip 9 - Swap to other pallet at end and continue");
   }
 
@@ -794,7 +795,7 @@ function onOpen() {
     }
   }
 
-  if (getProperty(properties.blockSkipControls)) {
+  if (blockSkipController.isEnabled()) {
     blockSkipController.writeBlockSkipInit();
   }
 
@@ -1370,6 +1371,10 @@ function onSection() {
     }
   }
 
+  if (isProbeOperation()) {
+    blockSkipController.writeProbeSkip();
+  }
+
   // Force work offset when changing tool
   if (insertToolCall) {
     currentWorkOffset = undefined;
@@ -1457,7 +1462,7 @@ function onSection() {
     setMachiningMode();
   }
 
-  if (getProperty(properties.blockSkipControls)) {
+  if (blockSkipController.isEnabled()) {
     blockSkipController.writeSkip(currentSection.workOffset);
   }
 
@@ -2633,7 +2638,7 @@ function onSectionEnd() {
 
   writeBlock(gPlaneModal.format(17));
 
-  if (getProperty(properties.blockSkipControls)) {
+  if (blockSkipController.isEnabled()) {
     blockSkipController.writeN(nextSection);
   }
 
@@ -2658,6 +2663,10 @@ function onSectionEnd() {
   }
 
   forceAny();
+
+  if (blockSkipController.isEnabled() && isProbeOperation()) {
+    blockSkipController.writeProbeN();
+  }
 }
 
 /** Output block to do safe retract and/or move to home position. */
@@ -2931,7 +2940,7 @@ function onClose() {
   onImpliedCommand(COMMAND_END);
   onImpliedCommand(COMMAND_STOP_SPINDLE);
 
-  if (getProperty(properties.blockSkipControls)) {
+  if (blockSkipController.isEnabled()) {
     writeln("");
     writeln("(Check part count before pallet swap)");
     if (getProperty(properties.incPartsCount)) {
@@ -3012,6 +3021,8 @@ function BlockSkipController() {
   this.currentOffset = undefined;
   this.wcsToBlockSkip = {};
 
+  this.currentProbeN = 95000;
+
   this.partsActiveVar = "#19";
   this._skipsUsed = {};
 
@@ -3052,10 +3063,23 @@ BlockSkipController.prototype.writeN = function (nextSection) {
   }
 }
 
+BlockSkipController.prototype.writeProbeSkip = function () {
+  writeln("IF [#908 EQ 1] GOTO " + this.currentProbeN);
+}
+
+BlockSkipController.prototype.writeProbeN = function (nextSection) {
+  writeln("N" + this.currentProbeN);
+  this.currentProbeN += 1;
+}
+
 BlockSkipController.prototype.writeBlockSkipInit = function () {
   writeln("G65 <SET_BSKIP_VARS> V900");
   writeln("IF [[#901 + #902 + #903] EQ 0] THEN")
   writeln("  #3000 = 21(*ERR*NO*BLOCK*SKIP*DETECTED)");
   writeln("ENDIF")
   writeln(this.partsActiveVar + " = 0 (N PARTS)");
+}
+
+BlockSkipController.prototype.isEnabled = function () {
+  return getProperty(properties.blockSkipControls);
 }
