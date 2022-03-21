@@ -3030,6 +3030,11 @@ BlockSkipController.prototype.nextN = function () {
 BlockSkipController.prototype.writeSkip = function (offset) {
   var blockSkip = this.wcsToBlockSkip[offset];
 
+  if (!blockSkip) {
+    // Unsupported WCS
+    return undefined;
+  }
+
   if (offset !== this.currentOffset) {
     this.currentOffset = offset;
     writeln("/" + blockSkip + " GOTO " + this.nextN());
