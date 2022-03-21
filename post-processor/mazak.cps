@@ -3053,17 +3053,9 @@ BlockSkipController.prototype.writeN = function (nextSection) {
 }
 
 BlockSkipController.prototype.writeBlockSkipInit = function () {
-  writeln("N89001 (CHECK BLOCK SKIP 1)");
-  writeln("/1 GOTO 89002");
-  writeln("GOTO 89999");
-  writeln("N89002 (CHECK BLOCK SKIP 2)");
-  writeln("/2 GOTO 89003");
-  writeln("GOTO 89999");
-  writeln("N89003 (CHECK BLOCK SKIP 3)");
-  writeln("/3 GOTO 89004");
-  writeln("GOTO 89999");
-  writeln("N89004 (NO BLOCK SKIP DETECTED)");
-  writeln("#3000 = 21(*ERR*NO*BLOCK*SKIP*DETECTED)");
-  writeln("N89999 (BLOCK SKIP DETECTED)");
+  writeln("G65 <SET_BSKIP_VARS> V900");
+  writeln("IF [[#901 + #902 + #903] EQ 0] THEN")
+  writeln("  #3000 = 21(*ERR*NO*BLOCK*SKIP*DETECTED)");
+  writeln("ENDIF")
   writeln(this.partsActiveVar + " = 0 (N PARTS)");
 }
