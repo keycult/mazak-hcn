@@ -1277,8 +1277,6 @@ function setMachiningMode() {
     machiningModeState.currentMode = mode;
     writeBlock(modeCode);
   }
-
-  usingHighSpeedMode() && enableHighSpeedMode();
 }
 
 var tscPressureModal = createModal({}, mFormat);
@@ -1455,6 +1453,10 @@ function onSection() {
     currentWorkOffset = workOffset;
   }
 
+  if (getProperty(properties.enableMachiningModes)) {
+    setMachiningMode();
+  }
+
   if (getProperty(properties.blockSkipControls)) {
     blockSkipController.writeSkip(currentSection.workOffset);
   }
@@ -1522,8 +1524,8 @@ function onSection() {
 
   validate(lengthCompensationActive, "Length compensation should not be active.");
 
-  if (getProperty(properties.enableMachiningModes)) {
-    setMachiningMode();
+  if (usingHighSpeedMode()) {
+    enableHighSpeedMode();
   }
 
   if (
