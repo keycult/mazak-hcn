@@ -456,6 +456,12 @@ properties = {
     value: "",
     scope: "operation",
   },
+  revSpinChipBreak: {
+    title: "Reverse spindle rotation before tool change to remove chips",
+    type: "boolean",
+    value: false,
+    scope: "operation",
+  },
 };
 
 var coolantOffCodes = [9];
@@ -1248,7 +1254,7 @@ function getMachiningMode() {
   } else if (isTappingCycle()) {
     return "auto";
   } else {
-    return getProperty(properties.machiningMode, currentSection.getId());
+    return currentSection.getProperty(properties.machiningMode);
   }
 }
 
@@ -1407,6 +1413,15 @@ function onSection() {
   }
 
   if (insertToolCall) {
+    if (previousSection && previousSection.getProperty(properties.revSpinChipBreak)) {
+      var prevTool = previousSection.getTool();
+      writeBlock(
+        mFormat.format(prevTool.clockwise ? 4 : 3),
+        rpmFormat.format(prevTool.getSpindleRPM())
+      );
+      writeBlock(gFormat.format(4), "X1.5");
+    }
+
     writeToolCall(tool);
   }
 
@@ -1562,7 +1577,7 @@ function onSection() {
     activeMovements = undefined;
   }
 
-  if (getProperty(properties.keycultSerialization, currentSection)) {
+  if (currentSection.getProperty(properties.keycultSerialization)) {
     writeSerializationMacroCall(currentSection);
     return skipRemainingSection();
   }
@@ -1571,7 +1586,7 @@ function onSection() {
 }
 
 function writeSerializationMacroCall(section) {
-  var passThrough = getProperty(properties.keycultSerializationMacroPassthrough, section);
+  var passThrough = section.getProperty(properties.keycultSerializationMacroPassthrough);
   validate(passThrough, "Passthrough options required for serialization macro");
 
   writeBlock(
@@ -3062,6 +3077,8 @@ BlockSkipController.prototype.writeSkip = function (offset) {
   if (!this._skipsUsed[blockSkip]) {
     this._skipsUsed[blockSkip] = true;
   }
+
+  return undefined;
 }
 
 BlockSkipController.prototype.writeN = function (nextSection) {
