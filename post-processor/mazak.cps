@@ -2977,7 +2977,7 @@ function onClose() {
     writeln("N99999");
     writeln("/9 M30");
     writeln("G65 <SWAP_PALLET>");
-    writeln("M99");
+    writeln("M998 Q0");
   } else {
     writeBlock(mFormat.format(30));
   }
